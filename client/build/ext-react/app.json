@@ -10,13 +10,13 @@
         "modern"
     ],
     "overrides": [
-        "C:\\Users\\dehantor\\WebstormProjects\\untitled3\\scrum\\client\\ext-react\\overrides",
+        "C:\\Users\\dehantor\\WebstormProjects\\untitled3\\scrum\\WebSite2\\client\\ext-react\\overrides",
         "jsdom-environment.js"
     ],
     "packages": {
         "dir": [
-            "C:\\Users\\dehantor\\WebstormProjects\\untitled3\\scrum\\client\\node_modules\\@extjs",
-            "C:\\Users\\dehantor\\WebstormProjects\\untitled3\\scrum\\client\\ext-react\\packages"
+            "C:\\Users\\dehantor\\WebstormProjects\\untitled3\\scrum\\WebSite2\\client\\node_modules\\@extjs",
+            "C:\\Users\\dehantor\\WebstormProjects\\untitled3\\scrum\\WebSite2\\client\\ext-react\\packages"
         ]
     },
     "output": {
