@@ -1,0 +1,30 @@
+{
+    "framework": "ext",
+    "toolkit": "modern",
+    "requires": [
+        "ext",
+        "core",
+        "font-awesome",
+        "font-ext",
+        "reactor",
+        "modern"
+    ],
+    "overrides": [
+        "C:\\Users\\dehantor\\WebstormProjects\\untitled3\\scrum\\client\\ext-react\\overrides",
+        "jsdom-environment.js"
+    ],
+    "packages": {
+        "dir": [
+            "C:\\Users\\dehantor\\WebstormProjects\\untitled3\\scrum\\client\\node_modules\\@extjs",
+            "C:\\Users\\dehantor\\WebstormProjects\\untitled3\\scrum\\client\\ext-react\\packages"
+        ]
+    },
+    "output": {
+        "base": ".",
+        "resources": {
+            "path": "./resources",
+            "shared": "./resources"
+        }
+    },
+    "theme": "custom-ext-react-theme"
+}
