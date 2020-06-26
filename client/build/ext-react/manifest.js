@@ -10241,6 +10241,232 @@ Ext.create({"xtype":"datepickerfield"});
 Ext.create({"xtype":"renderercell"});
 Ext.create({"xtype":"button"});
 Ext.create({"xtype":"datefield"});
+Ext.require(['Ext.grid.plugin.Editable', 'Ext.grid.plugin.CellEditing', 'Ext.data.validator.Presence', 'Ext.data.validator.Number', 'Ext.data.validator.Date']);
+Ext.create('Ext.data.Store', {
+  fields: ['p00', 'p01'],
+  data: data
+});
+Ext.create({
+  xtype: 'container',
+  title: '\u041F\u043B\u0430\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435 \u043F\u043E\u0441\u0442\u0430\u0432\u043E\u043A',
+  layout: 'hbox',
+  padding: '30'
+});
+Ext.create({
+  xtype: 'grid',
+  store: this.stort,
+  shadow: true,
+  width: 280,
+  platformConfig: {
+    desktop: {
+      plugins: {
+        gridcellediting: true
+      }
+    },
+    '!desktop': {
+      plugins: {
+        grideditable: true
+      }
+    }
+  }
+});
+Ext.create({
+  xtype: 'column',
+  text: '\u0420\u0435\u0433\u0438\u043E\u043D\u044B',
+  dataIndex: 'p01',
+  flex: 3,
+  resizable: true,
+  editable: true,
+  responsiveConfig: (_ref = {}, _defineProperty(_ref, small, {
+    hidden: true
+  }), _defineProperty(_ref, medium, {
+    hidden: false
+  }), _ref)
+});
+Ext.create({
+  xtype: 'column',
+  text: '',
+  width: '100',
+  ignoreExport: true,
+  dataIndex: 'verified',
+  align: 'center'
+});
+Ext.create({
+  xtype: 'renderercell',
+  renderer: this.renderVerify,
+  bodyStyle: {
+    padding: 0
+  }
+});
+Ext.create({
+  xtype: 'container',
+  defaults: {
+    margin: 10
+  }
+});
+Ext.create({
+  xtype: 'panel',
+  width: 800,
+  height: 100,
+  split: true
+});
+Ext.create({
+  xtype: 'panel',
+  title: '\u0442\u0430\u0431\u043B\u0438\u0446\u0430',
+  width: 500,
+  height: 400,
+  draggable: true,
+  collapsible: true //сворачиваемость
+  ,
+  closable: true // закрываемость
+
+});
+Ext.create({
+  xtype: 'grid',
+  store: this.stort
+});
+Ext.create({
+  xtype: 'column',
+  text: '\u0442\u0430\u0431\u043B\u0438\u0446\u0430',
+  dataIndex: 'p01',
+  flex: 3,
+  resizable: true,
+  responsiveConfig: (_ref2 = {}, _defineProperty(_ref2, small, {
+    hidden: true
+  }), _defineProperty(_ref2, medium, {
+    hidden: false
+  }), _ref2)
+});
+Ext.create({"xtype":"container"});
+Ext.create({
+  xtype: 'button',
+  text: '\u0412\u044B\u0431\u0440\u0430\u0442\u044C',
+  ui: 'action',
+  handler: this.onVerify.bind(this, record)
+});
+Ext.create({"xtype":"column"});
+Ext.create({"xtype":"panel"});
+Ext.create({"xtype":"container"});
+Ext.create({"xtype":"grid"});
+Ext.create({"xtype":"searchfield"});
+Ext.create({"xtype":"toolbar"});
+Ext.create({"xtype":"datepickerfield"});
+Ext.create({"xtype":"renderercell"});
+Ext.create({"xtype":"button"});
+Ext.create({"xtype":"datefield"});
+Ext.require(['Ext.grid.plugin.Editable', 'Ext.grid.plugin.CellEditing', 'Ext.data.validator.Presence', 'Ext.data.validator.Number', 'Ext.data.validator.Date']);
+Ext.create('Ext.data.Store', {
+  fields: ['p00', 'p01'],
+  data: data
+});
+Ext.create({
+  xtype: 'container',
+  title: '\u041F\u043B\u0430\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435 \u043F\u043E\u0441\u0442\u0430\u0432\u043E\u043A',
+  layout: 'hbox',
+  padding: '30'
+});
+Ext.create({
+  xtype: 'grid',
+  store: this.stort,
+  shadow: true,
+  width: 280,
+  platformConfig: {
+    desktop: {
+      plugins: {
+        gridcellediting: true
+      }
+    },
+    '!desktop': {
+      plugins: {
+        grideditable: true
+      }
+    }
+  }
+});
+Ext.create({
+  xtype: 'column',
+  text: '\u0420\u0435\u0433\u0438\u043E\u043D\u044B',
+  dataIndex: 'p01',
+  flex: 3,
+  resizable: true,
+  editable: true,
+  responsiveConfig: (_ref = {}, _defineProperty(_ref, small, {
+    hidden: true
+  }), _defineProperty(_ref, medium, {
+    hidden: false
+  }), _ref)
+});
+Ext.create({
+  xtype: 'column',
+  text: '',
+  width: '100',
+  ignoreExport: true,
+  dataIndex: 'verified',
+  align: 'center'
+});
+Ext.create({
+  xtype: 'renderercell',
+  renderer: this.renderVerify,
+  bodyStyle: {
+    padding: 0
+  }
+});
+Ext.create({
+  xtype: 'container',
+  defaults: {
+    margin: 10
+  }
+});
+Ext.create({
+  xtype: 'panel',
+  width: 800,
+  height: 100,
+  split: true
+});
+Ext.create({
+  xtype: 'panel',
+  title: '\u0442\u0430\u0431\u043B\u0438\u0446\u0430',
+  width: 500,
+  height: 400,
+  draggable: true,
+  collapsible: true //сворачиваемость
+  ,
+  closable: true // закрываемость
+
+});
+Ext.create({
+  xtype: 'grid',
+  store: this.stort
+});
+Ext.create({
+  xtype: 'column',
+  text: '\u0442\u0430\u0431\u043B\u0438\u0446\u0430',
+  dataIndex: 'p01',
+  flex: 3,
+  resizable: true,
+  responsiveConfig: (_ref2 = {}, _defineProperty(_ref2, small, {
+    hidden: true
+  }), _defineProperty(_ref2, medium, {
+    hidden: false
+  }), _ref2)
+});
+Ext.create({"xtype":"container"});
+Ext.create({
+  xtype: 'button',
+  text: '\u0412\u044B\u0431\u0440\u0430\u0442\u044C',
+  ui: 'action',
+  handler: this.onVerify.bind(this, record)
+});
+Ext.create({"xtype":"column"});
+Ext.create({"xtype":"panel"});
+Ext.create({"xtype":"container"});
+Ext.create({"xtype":"grid"});
+Ext.create({"xtype":"searchfield"});
+Ext.create({"xtype":"toolbar"});
+Ext.create({"xtype":"datepickerfield"});
+Ext.create({"xtype":"renderercell"});
+Ext.create({"xtype":"button"});
+Ext.create({"xtype":"datefield"});
 Ext.create({
   xtype: 'container',
   fullscreen: true,

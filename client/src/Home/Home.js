@@ -31,7 +31,7 @@ export default class Contacts extends Component {
 
     componentDidMount() {
 
-        const url="http://127.0.0.1:3000/r1022/list";
+        const url="http://94.73.212.60:3000/r1022/list";
         axios.get(url)
             .then(res=>{
                 if(res.data.success){
