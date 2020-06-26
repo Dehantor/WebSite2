@@ -42877,6 +42877,167 @@ Ext.define('Ext.app.domain.Controller', {extend:Ext.app.EventDomain, singleton:t
   }
   return result;
 }});
+Ext.define('Ext.direct.Manager', {singleton:true, mixins:[Ext.mixin.Observable], exceptions:{TRANSPORT:'xhr', PARSE:'parse', DATA:'data', LOGIN:'login', SERVER:'exception'}, providerClasses:{}, remotingMethods:{}, config:{varName:'Ext.REMOTING_API'}, apiNotFoundError:'Ext Direct API was not found at {0}', constructor:function() {
+  var me = this;
+  me.mixins.observable.constructor.call(me);
+  me.transactions = new Ext.util.MixedCollection;
+  me.providers = new Ext.util.MixedCollection;
+}, addProvider:function(provider) {
+  var me = this, args = arguments, relayers = me.relayers || (me.relayers = {}), i, len;
+  if (args.length > 1) {
+    for (i = 0, len = args.length; i < len; ++i) {
+      me.addProvider(args[i]);
+    }
+    return;
+  }
+  if (!provider.isProvider) {
+    provider = Ext.create('direct.' + provider.type + 'provider', provider);
+  }
+  me.providers.add(provider);
+  provider.on('data', me.onProviderData, me);
+  if (provider.relayedEvents) {
+    relayers[provider.id] = me.relayEvents(provider, provider.relayedEvents);
+  }
+  if (!provider.isConnected()) {
+    provider.connect();
+  }
+  return provider;
+}, loadProvider:function(config, callback, scope) {
+  var me = this, classes = me.providerClasses, type, url, varName, provider, i, len;
+  if (Ext.isArray(config)) {
+    for (i = 0, len = config.length; i < len; i++) {
+      me.loadProvider(config[i], callback, scope);
+    }
+    return;
+  }
+  type = config.type;
+  url = config.url;
+  if (classes[type] && classes[type].checkConfig(config)) {
+    provider = me.addProvider(config);
+    me.fireEventArgs('providerload', [url, provider]);
+    Ext.callback(callback, scope, [url, provider]);
+    return;
+  }
+  varName = config.varName || me.getVarName();
+  delete config.varName;
+  if (!url) {
+    Ext.raise('Need API discovery URL to load a Remoting provider!');
+  }
+  delete config.url;
+  Ext.Loader.loadScript({url:url, scope:me, onLoad:function() {
+    this.onApiLoadSuccess({url:url, varName:varName, config:config, callback:callback, scope:scope});
+  }, onError:function() {
+    this.onApiLoadFailure({url:url, callback:callback, scope:scope});
+  }});
+}, getProvider:function(id) {
+  return id.isProvider ? id : this.providers.get(id);
+}, removeProvider:function(provider) {
+  var me = this, providers = me.providers, relayers = me.relayers, id;
+  provider = provider.isProvider ? provider : providers.get(provider);
+  if (provider) {
+    provider.un('data', me.onProviderData, me);
+    id = provider.id;
+    if (relayers[id]) {
+      relayers[id].destroy();
+      delete relayers[id];
+    }
+    providers.remove(provider);
+    return provider;
+  }
+  return null;
+}, addTransaction:function(transaction) {
+  this.transactions.add(transaction);
+  return transaction;
+}, removeTransaction:function(transaction) {
+  var me = this;
+  transaction = me.getTransaction(transaction);
+  me.transactions.remove(transaction);
+  return transaction;
+}, getTransaction:function(transaction) {
+  return typeof transaction === 'object' ? transaction : this.transactions.get(transaction);
+}, onProviderData:function(provider, event) {
+  var me = this, i, len;
+  if (Ext.isArray(event)) {
+    for (i = 0, len = event.length; i < len; ++i) {
+      me.onProviderData(provider, event[i]);
+    }
+    return;
+  }
+  if (event.name && event.name !== 'event' && event.name !== 'exception') {
+    me.fireEvent(event.name, event);
+  } else {
+    if (event.status === false) {
+      me.fireEvent('exception', event);
+    }
+  }
+  me.fireEvent('event', event, provider);
+}, parseMethod:function(fn) {
+  var current = Ext.global, i = 0, resolved, parts, len;
+  if (Ext.isFunction(fn)) {
+    resolved = fn;
+  } else {
+    if (Ext.isString(fn)) {
+      resolved = this.remotingMethods[fn];
+      if (!resolved) {
+        parts = fn.split('.');
+        len = parts.length;
+        while (current && i < len) {
+          current = current[parts[i]];
+          ++i;
+        }
+        resolved = Ext.isFunction(current) ? current : null;
+      }
+    }
+  }
+  return resolved || null;
+}, resolveApi:function(api, caller) {
+  var prefix, action, method, fullName, fn;
+  prefix = api && api.prefix;
+  if (prefix && prefix.substr(prefix.length - 1) !== '.') {
+    prefix += '.';
+  }
+  for (action in api) {
+    method = api[action];
+    if (action !== 'prefix' && typeof method !== 'function') {
+      fullName = (prefix || '') + method;
+      fn = this.parseMethod(fullName);
+      if (typeof fn === 'function') {
+        api[action] = fn;
+      } else {
+        Ext.raise("Cannot resolve Direct API method '" + fullName + "' for " + action + ' action in ' + caller.$className + ' instance with id: ' + (caller.id != null ? caller.id : 'unknown'));
+      }
+    }
+  }
+  return api;
+}, privates:{addProviderClass:function(type, cls) {
+  this.providerClasses[type] = cls;
+}, onApiLoadSuccess:function(options) {
+  var me = this, url = options.url, varName = options.varName, api, provider, error;
+  try {
+    api = Ext.apply(options.config, eval(varName));
+    provider = me.addProvider(api);
+  } catch (e$31) {
+    error = e$31 + '';
+  }
+  if (error) {
+    me.fireEventArgs('providerloaderror', [url, error]);
+    Ext.callback(options.callback, options.scope, [url, error]);
+  } else {
+    me.fireEventArgs('providerload', [url, provider]);
+    Ext.callback(options.callback, options.scope, [url, provider]);
+  }
+}, onApiLoadFailure:function(options) {
+  var url = options.url, error;
+  error = Ext.String.format(this.apiNotFoundError, url);
+  this.fireEventArgs('providerloaderror', [url, error]);
+  Ext.callback(options.callback, options.scope, [url, error]);
+}, registerMethod:function(name, method) {
+  this.remotingMethods[name] = method;
+}, clearAllMethods:function() {
+  this.remotingMethods = {};
+}}}, function() {
+  Ext.Direct = Ext.direct.Manager;
+});
 Ext.define('Ext.data.NodeInterface', {statics:{decorate:function(modelClass) {
   var model = Ext.data.schema.Schema.lookupEntity(modelClass), proto = model.prototype, idName, idField, idType;
   if (!model.prototype.isObservable) {
@@ -44845,7 +45006,7 @@ Ext.define('Ext.dom.Helper', function() {
             try {
               range[setStart](el[rangeEl]);
               frag = range.createContextualFragment(html);
-            } catch (e$31) {
+            } catch (e$32) {
               frag = this.createContextualFragment(html);
             }
           } else {
@@ -44994,6 +45155,13 @@ Ext.define('Ext.data.validator.Number', {extend:Ext.data.validator.Validator, al
 Ext.define('Ext.data.validator.Date', {extend:Ext.data.validator.AbstractDate, alias:'data.validator.date', type:'date', isDateValidator:true, message:'Is not a valid date', privates:{getDefaultFormat:function() {
   return [Ext.Date.defaultFormat, 'm/d/Y', 'n/j/Y', 'n/j/y', 'm/j/y', 'n/d/y', 'm/j/Y', 'n/d/Y', 'm-d-y', 'n-d-y', 'm-d-Y', 'mdy', 'mdY', 'Y-m-d'];
 }}});
+Ext.define('Ext.data.validator.Presence', {extend:Ext.data.validator.Validator, alias:'data.validator.presence', type:'presence', isPresence:true, config:{message:'Must be present', allowEmpty:false}, validate:function(value) {
+  var valid = !(value === undefined || value === null);
+  if (valid && !this.getAllowEmpty()) {
+    valid = value !== '';
+  }
+  return valid ? true : this.getMessage();
+}});
 Ext.define('Ext.util.TaskRunner', {fireIdleEvent:null, interval:10, timerId:null, constructor:function(interval) {
   var me = this;
   if (typeof interval === 'number') {
@@ -45422,7 +45590,7 @@ Ext.define('Ext.dom.GarbageCollector', {singleton:true, interval:30000, construc
     }
     try {
       isGarbage = Ext.isGarbage(dom);
-    } catch (e$32) {
+    } catch (e$33) {
       delete cache[eid];
       collectedIds.push('#' + el.id);
       continue;
@@ -46249,6 +46417,41 @@ Ext.define('Ext.drag.Source', {extend:Ext.drag.Item, defaultIdPrefix:'source-', 
 }, setup:Ext.privateFn, stopNativeDrag:function(e) {
   e.preventDefault();
 }}});
+Ext.define('Ext.drag.proxy.None', {mixins:[Ext.mixin.Factoryable], alias:'drag.proxy.none', factoryConfig:{aliasPrefix:'drag.proxy.', type:'dragproxy'}, config:{source:null}, constructor:function(config) {
+  var getElement = config && config.getElement;
+  if (getElement) {
+    this.getElement = getElement;
+    config = Ext.apply({}, config);
+    delete config.getElement;
+  }
+  this.initConfig(config);
+}, cleanup:Ext.emptyFn, dragRevert:function(info, revertCls, options, callback) {
+  var positionable = this.getPositionable(info), initial = info.proxy.initial;
+  positionable.addCls(revertCls);
+  positionable.setXY([initial.x, initial.y], Ext.apply({callback:function() {
+    positionable.removeCls(revertCls);
+    callback();
+  }}, options));
+}, getElement:function() {
+  return null;
+}, getPositionable:function() {
+  return this.element;
+}, setXY:function(info, xy, animation) {
+  var positionable = this.getPositionable(info);
+  if (positionable) {
+    positionable.setXY(xy, animation);
+  }
+}, update:Ext.emptyFn, privates:{setupElement:function(info) {
+  return this.element = this.getElement(info);
+}, adjustCursorOffset:function(info, pos) {
+  return pos;
+}}});
+Ext.define('Ext.drag.proxy.Original', {extend:Ext.drag.proxy.None, alias:'drag.proxy.original', getElement:function(info) {
+  return info.source.getElement();
+}, getPositionable:function(info) {
+  var source = info.source;
+  return source.getComponent() || source.getElement();
+}});
 Ext.define('Ext.event.gesture.Recognizer', {mixins:[Ext.mixin.Identifiable], priority:0, handledEvents:[], isStarted:false, config:{onRecognized:Ext.emptyFn, callbackScope:null}, constructor:function(config) {
   this.initConfig(config);
   Ext.event.publisher.Gesture.instance.registerRecognizer(this);
@@ -51133,6 +51336,177 @@ defaultBindProperty:'value', twoWayBindable:{value:1}, publishes:{value:1}, inpu
   }
 });
 Ext.define('Ext.theme.material.field.Text', {override:'Ext.field.Text', config:{labelAlign:'placeholder', animateUnderline:true}});
+Ext.define('Ext.Editor', {extend:Ext.Container, xtype:'editor', isEditor:true, config:{field:{xtype:'textfield'}}, floated:true, allowBlur:true, revertInvalid:true, hideEl:true, value:'', alignment:'c-c?', offset:[0, 0], shadow:'frame', constrain:false, swallowKeys:true, completeOnEnter:true, cancelOnEsc:true, cancelOnClear:false, updateEl:false, focusOnToFront:false, baseCls:Ext.baseCSSPrefix + 'editor', editing:false, preventDefaultAlign:true, useBoundValue:true, specialKeyDelay:1, matchFont:false, 
+applyField:function(config) {
+  return Ext.widget(config);
+}, updateField:function(newField, oldField) {
+  var me = this, inputEl;
+  if (oldField) {
+    me.remove(oldField, true);
+    oldField.un({specialkey:'onSpecialKey', clearicontap:'onFieldClear', scope:this});
+    me._fieldSwallower = Ext.destroy(me._fieldSwallower);
+  }
+  if (newField) {
+    inputEl = newField.inputElement;
+    me.add(newField);
+    newField.on({specialkey:'onSpecialKey', clearicontap:'onFieldClear', scope:this});
+    if (me.swallowKeys) {
+      me._fieldSwallower = inputEl.swallowEvent(['keypress', 'keydown']);
+    }
+  }
+}, onAdded:function(container) {
+  this.ownerCmp = container;
+  this.callParent(arguments);
+}, onSpecialKey:function(field, event) {
+  var me = this, key = event.getKey(), complete = me.completeOnEnter && key === event.ENTER, cancel = me.cancelOnEsc && key === event.ESC, task = me.specialKeyTask;
+  if (!event.fromBoundList && (complete || cancel)) {
+    event.stopEvent();
+    if (!task) {
+      me.specialKeyTask = task = new Ext.util.DelayedTask;
+    }
+    task.delay(me.specialKeyDelay, complete ? me.completeEdit : me.cancelEdit, me);
+    if (me.specialKeyDelay === 0) {
+      task.cancel();
+      if (complete) {
+        me.completeEdit();
+      } else {
+        me.cancelEdit();
+      }
+    }
+  }
+  me.fireEvent('specialkey', me, field, event);
+}, startEdit:function(el, value, doFocus) {
+  var me = this, field = me.getField(), dom, font;
+  if (!this.allowBlur && this.editing) {
+    me.toggleBoundEl(true);
+  }
+  me.completeEdit(true);
+  me.boundEl = el = Ext.get(el);
+  dom = me.boundEl.dom;
+  if (me.useBoundValue && !Ext.isDefined(value)) {
+    value = Ext.String.trim(dom.textContent || dom.innerText || dom.innerHTML);
+  }
+  if (me.fireEvent('beforestartedit', me, el, value) !== false) {
+    if (me.context) {
+      value = me.context.value;
+    }
+    if (this.matchFont) {
+      font = el.getStyle('font');
+      if (!font) {
+        font = el.getStyle('fontWeight') + ' ' + el.getStyle('fontSize') + '/' + el.getStyle('lineHeight') + ' ' + el.getStyle('fontFamily');
+      }
+      field.inputElement.setStyle('font', font);
+    }
+    me.startValue = value;
+    me.show();
+    if (!me.getFloated()) {
+      me.setTop(0);
+    }
+    me.realign();
+    field.suspendEvents();
+    field.setValue(value);
+    field.resetOriginalValue();
+    field.resumeEvents();
+    if (doFocus !== false) {
+      field.focus(field.selectOnFocus ? true : [Number.MAX_VALUE]);
+    }
+    me.toggleBoundEl(false);
+    me.editing = true;
+  }
+}, realign:function() {
+  var me = this;
+  me.setConstrainAlign(Ext.getBody().getConstrainRegion());
+  me.alignTo(me.boundEl, me.alignment, {offset:me.offset});
+}, completeEdit:function(remainVisible) {
+  var me = this, field = me.getField(), startValue = me.startValue, cancel = me.context && me.context.cancel, value;
+  if (!me.editing) {
+    return;
+  }
+  value = me.getValue();
+  if (!field.isValid() || !field.validate()) {
+    if (me.revertInvalid !== false) {
+      me.cancelEdit(remainVisible);
+    }
+    return;
+  }
+  if (me.ignoreNoChange && !field.didValueChange(value, startValue)) {
+    me.onEditComplete(remainVisible);
+    return;
+  }
+  if (me.fireEvent('beforecomplete', me, value, startValue) !== false) {
+    value = me.getValue();
+    if (me.updateEl && me.boundEl) {
+      me.boundEl.setHtml(value);
+    }
+    me.onEditComplete(remainVisible, cancel);
+    me.fireEvent('complete', me, value, startValue);
+  }
+}, afterShow:function() {
+  var me = this;
+  me.callParent(arguments);
+  me.fireEvent('startedit', me, me.boundEl, me.startValue);
+}, onFieldClear:function() {
+  if (this.cancelOnClear) {
+    this.cancelEdit();
+  }
+}, cancelEdit:function(remainVisible) {
+  var me = this, startValue = me.startValue, field = me.getField(), value;
+  if (me.editing) {
+    if (field) {
+      value = me.editedValue = me.getValue();
+      field.suspendEvents();
+      me.setValue(startValue);
+      field.resumeEvents();
+    }
+    me.onEditComplete(remainVisible, true);
+    me.fireEvent('canceledit', me, value, startValue);
+    delete me.editedValue;
+  }
+}, onEditComplete:function(remainVisible, cancelling) {
+  var me = this, field = me.getField();
+  me.editing = false;
+  if (remainVisible !== true) {
+    me.hide();
+    me.toggleBoundEl(true);
+  }
+  field.inputElement.setStyle('font', null);
+}, onFocusLeave:function(e) {
+  var me = this;
+  if (me.allowBlur === true && me.editing) {
+    me.completeEdit();
+  }
+  me.callParent([e]);
+}, updateHidden:function(hidden, oldHidden) {
+  var me = this, field;
+  if (hidden && !me.destroying) {
+    field = me.getField();
+    if (me.editing) {
+      me.completeEdit();
+    } else {
+      if (field.collapse) {
+        field.collapse();
+      }
+    }
+  }
+  me.callParent([hidden, oldHidden]);
+}, getValue:function() {
+  var field = this.getField();
+  return field.getValue();
+}, setValue:function(value) {
+  var field = this.getField();
+  field.setValue(value);
+}, toggleBoundEl:function(visible) {
+  if (this.hideEl) {
+    this.boundEl.setVisibilityMode(Ext.Element.VISIBILITY);
+    this.boundEl.setVisible(visible);
+  }
+}, doDestroy:function() {
+  var me = this, task = me.specialKeyTask;
+  if (task) {
+    task.cancel();
+  }
+  me.callParent();
+}});
 Ext.define('Ext.LoadMask', {extend:Ext.Mask, xtype:'loadmask', config:{message:'Loading...', cls:Ext.baseCSSPrefix + 'loading-mask', messageCls:Ext.baseCSSPrefix + 'mask-message', indicator:true}, getTemplate:function() {
   var prefix = Ext.baseCSSPrefix;
   return [{reference:'innerElement', cls:prefix + 'mask-inner', children:[{reference:'indicatorElement', cls:prefix + 'loading-spinner-outer', children:[{cls:prefix + 'loading-spinner', children:[{tag:'span', cls:prefix + 'loading-top'}, {tag:'span', cls:prefix + 'loading-right'}, {tag:'span', cls:prefix + 'loading-bottom'}, {tag:'span', cls:prefix + 'loading-left'}]}]}, {reference:'messageElement'}]}];
@@ -51784,6 +52158,112 @@ Ext.define('Ext.TitleBar', {extend:Ext.Container, xtype:'titlebar', defaultBindP
 }});
 Ext.define('Ext.theme.neptune.Titlebar', {override:'Ext.TitleBar', config:{defaultButtonUI:'alt'}});
 Ext.define('Ext.theme.material.TitleBar', {override:'Ext.TitleBar', config:{titleAlign:'left', defaultButtonUI:'alt'}});
+Ext.define('Ext.Toast', {extend:Ext.Sheet, config:{centered:false, showAnimation:{type:'popIn', duration:250, easing:'ease-out'}, hideAnimation:{type:'popOut', duration:250, easing:'ease-out'}, zIndex:999, message:'', timeout:1000, maxQueue:3, messageAnimation:true, hideOnMaskTap:true, modal:false, layout:{type:'vbox', pack:'center'}}, classCls:Ext.baseCSSPrefix + 'toast', applyMessage:function(value) {
+  var config = {html:value, cls:this.baseCls + '-text'};
+  return Ext.factory(config, Ext.Component, this._message);
+}, updateMessage:function(newMessage) {
+  if (newMessage) {
+    this.add(newMessage);
+  }
+}, startTimer:function() {
+  var timeout = this.getTimeout();
+  if (this._timeoutID) {
+    Ext.undefer(this._timeoutID);
+  }
+  if (!Ext.isEmpty(timeout)) {
+    this._timeoutID = Ext.defer(this.onTimeout.bind(this), timeout);
+  } else {
+    this.onTimeout();
+  }
+}, stopTimer:function() {
+  Ext.undefer(this._timeoutID);
+  this._timeoutID = null;
+}, next:Ext.emptyFn, getIsAnimating:function() {
+  var messageContainer = this.getMessage();
+  return messageContainer && Ext.Animator.hasRunningAnimations(messageContainer) || Ext.Animator.hasRunningAnimations(this);
+}, showToast:function(config) {
+  var me = this, message = config.message, timeout = config.timeout, messageContainer = me.getMessage(), msgAnimation = me.getMessageAnimation();
+  if (me.isRendered() && me.isHidden() === false) {
+    messageContainer.onAfter({hiddenchange:function() {
+      me.setMessage(message);
+      me.setTimeout(timeout);
+      messageContainer.onAfter({scope:me, hiddenchange:function() {
+        me.startTimer();
+      }, single:true});
+      messageContainer.show(msgAnimation);
+    }, scope:me, single:true});
+    messageContainer.hide(msgAnimation);
+  } else {
+    Ext.util.InputBlocker.blockInputs();
+    if (!me.getParent() && Ext.Viewport) {
+      Ext.Viewport.add(me);
+    }
+    me.setMessage(message);
+    me.setTimeout(timeout);
+    me.startTimer();
+    me.show({animation:null, alignment:{component:document.body, alignment:'t-t', options:{offset:[0, 20]}}});
+  }
+}, beforeHide:function(animation) {
+  this.callParent(arguments);
+  if (this.getIsAnimating()) {
+    return false;
+  }
+  this.stopTimer();
+  if (!this.next()) {
+    return false;
+  }
+}, onTimeout:function() {
+  if (this._timeoutID !== null) {
+    this.hide();
+  }
+}, doDestroy:function() {
+  this.stopTimer();
+  this.callParent();
+}}, function(Toast) {
+  var _queue = [];
+  function getInstance() {
+    if (!Ext.Toast._instance) {
+      Ext.Toast._instance = Ext.create('Ext.Toast');
+    }
+    return Ext.Toast._instance;
+  }
+  Toast.prototype.getQueueCount = function() {
+    return _queue.length;
+  };
+  Toast.prototype.next = function() {
+    var config = _queue.shift();
+    if (config) {
+      this.showToast(config);
+    }
+    return !config;
+  };
+  Ext.Toast.destroy = function() {
+    if (Ext.Toast._instance) {
+      Ext.Toast._instance.destroy();
+      Ext.Toast._instance = null;
+    }
+  };
+  Ext.toast = function(message, timeout) {
+    var toast = getInstance(), maxQueue = Ext.Toast.prototype.config.maxQueue, config = message;
+    if (Ext.isString(message)) {
+      config = {message:message, timeout:timeout};
+    }
+    if (!config) {
+      throw new Error('Toast requires a message');
+    }
+    if (config.timeout === undefined) {
+      config.timeout = Ext.Toast.prototype.config.timeout;
+    }
+    _queue.push(config);
+    if (_queue.length > maxQueue) {
+      _queue.shift();
+    }
+    if (!toast.isRendered() || toast.isHidden()) {
+      toast.next();
+    }
+    return toast;
+  };
+});
 Ext.define('Ext.dataview.Location', {isDataViewLocation:true, child:null, event:null, item:null, record:null, recordIndex:-1, sourceElement:null, view:null, viewIndex:-1, constructor:function(view, source) {
   this.view = view;
   if (source != null) {
@@ -57365,6 +57845,265 @@ Ext.define('Ext.picker.Picker', {extend:Ext.Sheet, alias:'widget.picker', altern
     ownerField.revertFocusTo(ownerField.ariaEl);
   }
 }}});
+Ext.define('Ext.field.Manager', {mixinId:'fieldmanager', fillRecord:function(record) {
+  var values, name;
+  if (record) {
+    values = this.getValues();
+    for (name in values) {
+      if (values.hasOwnProperty(name) && record.getField(name)) {
+        record.set(name, values[name]);
+      }
+    }
+  }
+  return this;
+}, consumeRecord:function(record) {
+  var data = record && record.data;
+  if (data) {
+    this.setValues(data);
+  }
+}, setValues:function(values) {
+  var fields = this.getFields(), name, field, value, ln, i, f;
+  values = values || {};
+  for (name in values) {
+    if (values.hasOwnProperty(name)) {
+      field = fields[name];
+      value = values[name];
+      if (field) {
+        if (Ext.isArray(field)) {
+          ln = field.length;
+          for (i = 0; i < ln; i++) {
+            f = field[i];
+            if (f.isRadio) {
+              f.setGroupValue(value);
+              break;
+            } else {
+              if (f.isCheckbox) {
+                if (Ext.isArray(value)) {
+                  f.setChecked(value.indexOf(f._value) != -1);
+                } else {
+                  f.setChecked(value == f._value);
+                }
+              } else {
+                if (Ext.isArray(value)) {
+                  f.setValue(value[i]);
+                }
+              }
+            }
+          }
+        } else {
+          if (field.isRadio || field.isCheckbox) {
+            field.setChecked(value);
+          } else {
+            field.setValue(value);
+          }
+        }
+        if (this.getTrackResetOnLoad && this.getTrackResetOnLoad()) {
+          field.resetOriginalValue();
+        }
+      }
+    }
+  }
+  return this;
+}, getValues:function(enabled, all) {
+  var fields = this.getFields(), values = {}, isArray = Ext.isArray, field, value, addValue, bucket, name, ln, i;
+  addValue = function(field, name) {
+    if (!all && (!name || name === 'null') || field.isFile) {
+      return;
+    }
+    if (field.isCheckbox) {
+      value = field.getSubmitValue();
+    } else {
+      value = field.getValue();
+    }
+    if (!(enabled && field.getDisabled())) {
+      if (field.isRadio) {
+        if (field.isChecked()) {
+          values[name] = value;
+        }
+      } else {
+        bucket = values[name];
+        if (!Ext.isEmpty(bucket)) {
+          if (!field.isCheckbox || field.isChecked()) {
+            if (!isArray(bucket)) {
+              bucket = values[name] = [bucket];
+            }
+            if (isArray(value)) {
+              bucket = values[name] = bucket.concat(value);
+            } else {
+              bucket.push(value);
+            }
+          }
+        } else {
+          values[name] = value;
+        }
+      }
+    }
+  };
+  for (name in fields) {
+    if (fields.hasOwnProperty(name)) {
+      field = fields[name];
+      if (isArray(field)) {
+        ln = field.length;
+        for (i = 0; i < ln; i++) {
+          addValue(field[i], name);
+        }
+      } else {
+        addValue(field, name);
+      }
+    }
+  }
+  return values;
+}, reset:function(clearInvalid) {
+  this.getFields(false).forEach(function(field) {
+    field.reset();
+    if (clearInvalid) {
+      field.setError(null);
+    }
+  });
+  return this;
+}, updateDisabled:function(newDisabled) {
+  this.getFields(false).forEach(function(field) {
+    field.setDisabled(newDisabled);
+  });
+  return this;
+}, setErrors:function(errors) {
+  var setError = function(field, fieldname) {
+    if (field) {
+      messages = errors[fieldname];
+      if (messages === null || Ext.isArray(messages) && messages.length === 0) {
+        field.setError(null);
+      } else {
+        field.setError(messages);
+      }
+    }
+  }, fieldname, field, messages, i, length;
+  if (!Ext.isObject(errors)) {
+    Ext.raise('setErrors requires an Object parameter');
+  }
+  for (fieldname in errors) {
+    field = this.lookupName(fieldname) || this.lookup(fieldname);
+    if (Ext.isArray(field)) {
+      for (i = 0, length = field.length; i < length; i++) {
+        setError(field[i], fieldname);
+      }
+    } else {
+      setError(field, fieldname);
+    }
+  }
+  return this;
+}, clearErrors:function() {
+  var fields = this.getFields(false), i, length, field;
+  for (i = 0, length = fields.length; i < length; i++) {
+    field = fields[i];
+    if (field.getName() && field.setError) {
+      field.setError(null);
+    }
+  }
+  return this;
+}, getErrors:function() {
+  var errors = {}, fields = this.getFields(false).filter(function(field) {
+    return field.getName();
+  }), i, length, field, error;
+  for (i = 0, length = fields.length; i < length; i++) {
+    field = fields[i];
+    error = field.getError();
+    if (!error || !error.length) {
+      error = null;
+    }
+    errors[field.getName()] = error;
+  }
+  return errors;
+}, isValid:function() {
+  var fields = this.getFields(false), i, length;
+  for (i = 0, length = fields.length; i < length; i++) {
+    if (!fields[i].isValid()) {
+      return false;
+    }
+  }
+  return true;
+}, validate:function(skipLazy) {
+  var fields = this.getFields(false), valid = true, i, length;
+  for (i = 0, length = fields.length; i < length; i++) {
+    if (!fields[i].validate(skipLazy)) {
+      valid = false;
+    }
+  }
+  return valid;
+}, getFields:function(byName, deep) {
+  var selector = (deep === false ? '\x3e ' : '') + 'field' + (byName ? '[name\x3d' + byName + ']' : ''), fields = this.query(selector), asArray = byName === false, obj, i, length, field, name, bucket;
+  if (!fields && asArray) {
+    return [];
+  } else {
+    if (fields && !asArray) {
+      if (!byName) {
+        obj = {};
+        for (i = 0, length = fields.length; i < length; i++) {
+          field = fields[i];
+          name = field.getName();
+          bucket = obj[name];
+          if (bucket) {
+            if (Ext.isArray(bucket)) {
+              bucket.push(field);
+            } else {
+              obj[name] = [bucket, field];
+            }
+          } else {
+            obj[name] = field;
+          }
+        }
+        return obj;
+      } else {
+        if (fields.length < 2) {
+          return fields[0];
+        }
+      }
+    }
+  }
+  return fields;
+}, getFocusedField:function() {
+  var fields = this.getFields(false), ln = fields.length, field, i;
+  for (i = 0; i < ln; i++) {
+    field = fields[i];
+    if (field.hasFocus) {
+      return field;
+    }
+  }
+  return null;
+}, getNextField:function() {
+  var fields = this.getFields(false), focusedField = this.getFocusedField(), index;
+  if (focusedField) {
+    index = fields.indexOf(focusedField);
+    if (index !== fields.length - 1) {
+      index++;
+      return fields[index];
+    }
+  }
+  return false;
+}, focusNextField:function() {
+  var field = this.getNextField();
+  if (field) {
+    field.focus();
+    return field;
+  }
+  return false;
+}, getPreviousField:function() {
+  var fields = this.getFields(false), focusedField = this.getFocusedField(), index;
+  if (focusedField) {
+    index = fields.indexOf(focusedField);
+    if (index !== 0) {
+      index--;
+      return fields[index];
+    }
+  }
+  return false;
+}, focusPreviousField:function() {
+  var field = this.getPreviousField();
+  if (field) {
+    field.focus();
+    return field;
+  }
+  return false;
+}});
 Ext.define('Ext.field.trigger.Date', {extend:Ext.field.trigger.Trigger, xtype:'datetrigger', alias:'trigger.date', classCls:Ext.baseCSSPrefix + 'datetrigger', handler:'onExpandTap', scope:'this'});
 Ext.define('Ext.picker.Date', {extend:Ext.picker.Picker, xtype:'datepicker', alternateClassName:'Ext.DatePicker', config:{yearFrom:1980, yearTo:(new Date).getFullYear(), monthText:'Month', dayText:'Day', yearText:'Year', slotOrder:['month', 'day', 'year'], doneButton:true}, initialize:function() {
   var me = this;
@@ -58898,10 +59637,458 @@ initialize:function() {
   var E = Ext.event.Event;
   C.prototype.specialKeys = Ext.Array.toMap([E.BACKSPACE, E.TAB, E.RETURN, E.CTRL, E.DELETE, E.LEFT, E.RIGHT, E.UP, E.DOWN, E.HOME, E.END, E.META]);
 });
+Ext.define('Ext.form.Borders', {mixinId:'formborders', config:{fieldSeparators:null, inputBorders:null}, fieldSeparatorsCls:Ext.baseCSSPrefix + 'form-field-separators', noInputBordersCls:Ext.baseCSSPrefix + 'form-no-input-borders', updateFieldSeparators:function(fieldSeparators, oldFieldSeparators) {
+  var bodyElement = this.bodyElement, cls = this.fieldSeparatorsCls;
+  if (fieldSeparators) {
+    bodyElement.addCls(cls);
+  } else {
+    if (oldFieldSeparators) {
+      bodyElement.removeCls(cls);
+    }
+  }
+}, updateInputBorders:function(inputBorders, oldInputBorders) {
+  var bodyElement = this.bodyElement, cls = this.noInputBordersCls;
+  if (inputBorders === false) {
+    bodyElement.addCls(cls);
+  } else {
+    if (oldInputBorders === false) {
+      bodyElement.removeCls(cls);
+    }
+  }
+}});
 Ext.define('Ext.theme.material.form.Borders', {override:'Ext.form.Borders', config:{fieldSeparators:false, inputBorders:true}});
+Ext.define('Ext.field.Panel', {extend:Ext.Panel, xtype:'fieldpanel', mixins:[Ext.field.Manager, Ext.form.Borders], scrollable:true, nameable:true, shareableName:true, nameHolder:true, config:{api:null, baseParams:null, paramOrder:null, paramsAsHash:null, timeout:30, url:null}, load:function(options) {
+  options = options || {};
+  var me = this, api = me.getApi(), url = options.url || me.getUrl(), waitMsg = options.waitMsg, successFn = function(response, data) {
+    me.setValues(data.data);
+    if (Ext.isFunction(options.success)) {
+      options.success.call(options.scope || me, me, response, data);
+    }
+    me.fireEvent('load', me, response);
+  }, failureFn = function(response, data) {
+    if (Ext.isFunction(options.failure)) {
+      options.failure.call(options.scope, me, response, data);
+    }
+    me.fireEvent('exception', me, response);
+  }, load, args;
+  if (options.waitMsg) {
+    if (typeof waitMsg === 'string') {
+      waitMsg = {xtype:'loadmask', message:waitMsg};
+    }
+    me.setMasked(waitMsg);
+  }
+  if (api) {
+    api = Ext.direct.Manager.resolveApi(api, me);
+    me.setApi(api);
+    load = api.load;
+    if (!load) {
+      Ext.raise('Cannot find Ext Direct API method for load action');
+    }
+    args = load.$directCfg.method.getArgs({params:me.getParams(options.params), paramOrder:me.getParamOrder(), paramsAsHash:me.getParamsAsHash(), scope:me, callback:function(data, response, success) {
+      me.setMasked(false);
+      if (success) {
+        successFn(response, data);
+      } else {
+        failureFn(response, data);
+      }
+    }});
+    load.apply(window, args);
+  } else {
+    if (url) {
+      return Ext.Ajax.request({url:url, timeout:(options.timeout || me.getTimeout()) * 1000, method:options.method || 'GET', autoAbort:options.autoAbort, headers:Ext.apply({'Content-Type':'application/x-www-form-urlencoded; charset\x3dUTF-8'}, options.headers || {}), callback:function(callbackOptions, success, response) {
+        var responseText = response.responseText, statusResult = Ext.data.request.Ajax.parseStatus(response.status, response);
+        me.setMasked(false);
+        if (success) {
+          if (statusResult && responseText.length === 0) {
+            success = true;
+          } else {
+            response = Ext.decode(responseText);
+            success = !!response.success;
+          }
+          if (success) {
+            successFn(response, responseText);
+          } else {
+            failureFn(response, responseText);
+          }
+        } else {
+          failureFn(response, responseText);
+        }
+      }});
+    }
+  }
+}, getParams:function(params) {
+  return Ext.apply({}, params, this.getBaseParams());
+}, updateDisabled:function(newDisabled, oldDisabled) {
+  this.mixins.fieldmanager.updateDisabled.call(this, newDisabled, oldDisabled);
+  this.callParent([newDisabled, oldDisabled]);
+}, updateRecord:function(record) {
+  this.consumeRecord(record);
+}});
 Ext.define('Ext.field.trigger.Search', {extend:Ext.field.trigger.Trigger, xtype:'searchtrigger', alias:'trigger.search', classCls:Ext.baseCSSPrefix + 'searchtrigger'});
 Ext.define('Ext.field.Search', {extend:Ext.field.Text, xtype:'searchfield', alternateClassName:'Ext.form.Search', inputType:'search', triggers:{search:{type:'search', side:'left'}}, classCls:Ext.baseCSSPrefix + 'searchfield'});
 Ext.define('Ext.theme.material.field.Toggle', {override:'Ext.field.Toggle', config:{ripple:{delegate:'.' + Ext.baseCSSPrefix + 'thumb', bound:false, fit:false, color:'default'}}});
+Ext.define('Ext.form.FieldSet', {extend:Ext.Container, xtype:'fieldset', mixins:[Ext.form.Borders], config:{title:null, instructions:null}, autoSize:null, baseCls:Ext.baseCSSPrefix + 'form-fieldset', applyTitle:function(title) {
+  if (typeof title == 'string') {
+    title = {title:title};
+  }
+  Ext.applyIf(title, {docked:'top', cls:this.baseCls + '-title'});
+  return Ext.factory(title, Ext.Title, this._title);
+}, updateTitle:function(newTitle, oldTitle) {
+  if (newTitle) {
+    this.add(newTitle);
+  }
+  if (oldTitle) {
+    this.remove(oldTitle);
+  }
+}, getTitle:function() {
+  var title = this._title;
+  if (title && title instanceof Ext.Title) {
+    return title.getTitle();
+  }
+  return title;
+}, applyInstructions:function(instructions) {
+  if (typeof instructions == 'string') {
+    instructions = {title:instructions};
+  }
+  Ext.applyIf(instructions, {docked:'bottom', cls:this.baseCls + '-instructions'});
+  return Ext.factory(instructions, Ext.Title, this._instructions);
+}, updateInstructions:function(newInstructions, oldInstructions) {
+  if (newInstructions) {
+    this.add(newInstructions);
+  }
+  if (oldInstructions) {
+    this.remove(oldInstructions);
+  }
+}, getInstructions:function() {
+  var instructions = this._instructions;
+  if (instructions && instructions instanceof Ext.Title) {
+    return instructions.getTitle();
+  }
+  return instructions;
+}, updateDisabled:function(newDisabled) {
+  this.query('field').forEach(function(field) {
+    field.setDisabled(newDisabled);
+  });
+  return this;
+}});
+Ext.define('Ext.form.Panel', {extend:Ext.field.Panel, xtype:'formpanel', alternateClassName:'Ext.form.FormPanel', classCls:Ext.baseCSSPrefix + 'formpanel', element:{reference:'element', tag:'form', novalidate:'novalidate'}, config:{enableSubmissionForm:true, enctype:null, method:'post', multipartDetection:true, standardSubmit:false, submitOnAction:false, trackResetOnLoad:false}, getTemplate:function() {
+  var template = this.callParent();
+  template.push({tag:'input', type:'submit', cls:Ext.baseCSSPrefix + 'hidden-submit'});
+  return template;
+}, initialize:function() {
+  this.callParent();
+  this.element.on('submit', 'onSubmit', this);
+}, applyEnctype:function(newValue) {
+  var form = this.element.dom || null;
+  if (form) {
+    if (newValue) {
+      form.setAttribute('enctype', newValue);
+    } else {
+      form.setAttribute('enctype');
+    }
+  }
+}, onSubmit:function(event) {
+  var me = this;
+  if (event && !me.getStandardSubmit()) {
+    event.stopEvent();
+  } else {
+    this.submit(null, event);
+  }
+}, updateSubmitOnAction:function(value) {
+  this[value ? 'on' : 'un']({action:'onFieldAction', scope:this});
+}, onFieldAction:function(field) {
+  if (this.getSubmitOnAction()) {
+    field.blur();
+    this.submit();
+  }
+}, submit:function(options, e) {
+  options = options || {};
+  var me = this, formValues = me.getValues(me.getStandardSubmit() || !options.submitDisabled), form = me.element.dom || {};
+  if (this.getEnableSubmissionForm()) {
+    form = this.createSubmissionForm(form, formValues);
+  }
+  options = Ext.apply({url:me.getUrl() || form.action, submit:false, form:form, method:me.getMethod() || form.method || 'post', autoAbort:false, params:null, waitMsg:null, headers:null, success:null, failure:null}, options || {});
+  return me.fireAction('beforesubmit', [me, formValues, options, e], 'doBeforeSubmit', null, null, 'after');
+}, privates:{applyExtraParams:function(options) {
+  var form = options.form, params = Ext.merge(this.getBaseParams() || {}, options.params), name, input;
+  for (name in params) {
+    input = document.createElement('input');
+    input.setAttribute('type', 'text');
+    input.setAttribute('name', name);
+    input.setAttribute('value', params[name]);
+    form.appendChild(input);
+  }
+}, beforeAjaxSubmit:function(form, options, successFn, failureFn) {
+  var me = this, url = options.url || me.getUrl(), request = Ext.merge({}, {url:url, timeout:me.getTimeout() * 1000, form:form, scope:me}, options);
+  delete request.success;
+  delete request.failure;
+  request.params = Ext.merge(me.getBaseParams() || {}, options.params);
+  request.header = Ext.apply({'Content-Type':'application/x-www-form-urlencoded; charset\x3dUTF-8'}, options.headers || {});
+  request.callback = function(callbackOptions, success, response) {
+    var responseText = response.responseText, responseXML = response.responseXML, statusResult = Ext.data.request.Ajax.parseStatus(response.status, response);
+    if (form.$fileswap) {
+      var original, placeholder;
+      Ext.each(form.$fileswap, function(item) {
+        original = item.original;
+        placeholder = item.placeholder;
+        placeholder.parentNode.insertBefore(original, placeholder.nextSibling);
+        placeholder.parentNode.removeChild(placeholder);
+      });
+      form.$fileswap = null;
+      delete form.$fileswap;
+    }
+    me.setMasked(false);
+    if (response.success === false) {
+      success = false;
+    }
+    if (success) {
+      if (statusResult && responseText && responseText.length === 0) {
+        success = true;
+      } else {
+        if (!Ext.isEmpty(response.responseBytes)) {
+          success = statusResult.success;
+        } else {
+          if (Ext.isString(responseText) && response.request.options.responseType === 'text') {
+            response.success = true;
+          } else {
+            if (Ext.isString(responseText)) {
+              try {
+                response = Ext.decode(responseText);
+              } catch (e$34) {
+                response.success = false;
+                response.error = e$34;
+                response.message = e$34.message;
+              }
+            } else {
+              if (Ext.isSimpleObject(responseText)) {
+                response = responseText;
+                Ext.applyIf(response, {success:true});
+              }
+            }
+          }
+          if (!Ext.isEmpty(responseXML)) {
+            response.success = true;
+          }
+          success = !!response.success;
+        }
+      }
+      if (success) {
+        successFn(response, responseText);
+      } else {
+        failureFn(response, responseText);
+      }
+    } else {
+      failureFn(response, responseText);
+    }
+  };
+  if (Ext.feature.has.XHR2 && request.xhr2) {
+    delete request.form;
+    var formData = request.data = new FormData(form);
+    if (request.params) {
+      Ext.iterate(request.params, function(name, value) {
+        if (Ext.isArray(value)) {
+          Ext.each(value, function(v) {
+            formData.append(name, v);
+          });
+        } else {
+          formData.append(name, value);
+        }
+      });
+      delete request.params;
+    }
+  }
+  return Ext.Ajax.request(request);
+}, beforeDirectSubmit:function(api, form, options, successFn, failureFn) {
+  var me = this, submit;
+  me.applyExtraParams(options);
+  api = Ext.direct.Manager.resolveApi(api, me);
+  me.setApi(api);
+  submit = api.submit;
+  if (!submit) {
+    Ext.raise('Cannot find Ext Direct API method for submit action');
+  }
+  return submit(form, function(data, response, success) {
+    me.setMasked(false);
+    if (success) {
+      if (data.success) {
+        successFn(response, data);
+      } else {
+        failureFn(response, data);
+      }
+    } else {
+      failureFn(response, data);
+    }
+  }, me);
+}, beforeStandardSubmit:function(form, options) {
+  if (options.url && Ext.isEmpty(form.action)) {
+    form.action = options.url;
+  }
+  var fields = this.query('spinnerfield'), ln = fields.length, body = document.body, i, field;
+  for (i = 0; i < ln; i++) {
+    field = fields[i];
+    if (!field.getDisabled()) {
+      field.setDisabled(false);
+    }
+  }
+  body.appendChild(form);
+  form.method = (options.method || form.method).toLowerCase();
+  form.submit();
+  body.removeChild(form);
+}, createSubmissionForm:function(form, values) {
+  var fields = this.getFields(), name, input, field, fileTrigger, inputDom;
+  if (form.nodeType === 1) {
+    form = form.cloneNode(false);
+    for (name in values) {
+      input = document.createElement('input');
+      input.setAttribute('type', 'text');
+      input.setAttribute('name', name);
+      input.setAttribute('value', values[name]);
+      form.appendChild(input);
+    }
+  }
+  for (name in fields) {
+    if (fields.hasOwnProperty(name)) {
+      field = fields[name];
+      if (field.isFile) {
+        fileTrigger = field.getTriggers().file;
+        inputDom = fileTrigger && fileTrigger.getComponent().buttonElement.dom;
+        if (inputDom) {
+          if (!form.$fileswap) {
+            form.$fileswap = [];
+          }
+          input = inputDom.cloneNode(true);
+          inputDom.parentNode.insertBefore(input, inputDom.nextSibling);
+          form.appendChild(inputDom);
+          form.$fileswap.push({original:inputDom, placeholder:input});
+        }
+      } else {
+        if (field.isPassword) {
+          if (field.getInputType() !== 'password') {
+            field.setRevealed(false);
+          }
+        }
+      }
+    }
+  }
+  return form;
+}, doBeforeSubmit:function(me, formValues, options) {
+  var form = options.form || {}, multipartDetected = false, ret;
+  if (this.getMultipartDetection() === true) {
+    this.getFields(false).forEach(function(field) {
+      if (field.isFile === true) {
+        multipartDetected = true;
+        return false;
+      }
+    });
+    if (multipartDetected) {
+      form.setAttribute('enctype', 'multipart/form-data');
+    }
+  }
+  if (options.enctype) {
+    form.setAttribute('enctype', options.enctype);
+  }
+  if (me.getStandardSubmit()) {
+    ret = me.beforeStandardSubmit(form, options);
+  } else {
+    var api = me.getApi(), scope = options.scope || me, failureFn = function(response, responseText) {
+      if (Ext.isFunction(options.failure)) {
+        options.failure.call(scope, me, response, responseText);
+      }
+      me.fireEvent('exception', me, response);
+    }, successFn = function(response, responseText) {
+      if (Ext.isFunction(options.success)) {
+        options.success.call(options.scope || me, me, response, responseText);
+      }
+      me.fireEvent('submit', me, response);
+    }, waitMsg = options.waitMsg;
+    if (options.waitMsg) {
+      if (typeof waitMsg === 'string') {
+        waitMsg = {xtype:'loadmask', message:waitMsg};
+      }
+      me.setMasked(waitMsg);
+    }
+    if (api) {
+      ret = me.beforeDirectSubmit(api, form, options, successFn, failureFn);
+    } else {
+      ret = me.beforeAjaxSubmit(form, options, successFn, failureFn);
+    }
+  }
+  return ret;
+}}});
+Ext.define('Ext.grid.CellEditor', {extend:Ext.Editor, xtype:'celleditor', isCellEditor:true, floated:false, classCls:Ext.baseCSSPrefix + 'celleditor', config:{autoPin:true}, swallowKeys:false, layout:'fit', shadow:false, allowBlur:true, alignment:'tl-tl', zIndex:10, useBoundValue:false, inheritUi:true, field:{inheritUi:true}, startEdit:function(location, value, doFocus) {
+  var me = this, cell, el, row, grid, result;
+  if (location) {
+    cell = location.cell;
+    el = cell.el;
+    value = value != null ? value : location.record.get(cell.dataIndex);
+    me.ownerCmp = cell;
+    me.render(el);
+    me.callParent([el, value, doFocus]);
+    if (me.editing) {
+      me.$activeRow = row = location.row;
+      me.$activeGrid = grid = row.getGrid();
+      me.editingPlugin.editing = true;
+      me.editingPlugin.location = me.$activeLocation = result = new Ext.grid.Location(grid, me.getField().getFocusEl());
+      me.editingPlugin.activeEditor = me;
+      grid.stickItem(row, {autoPin:me.getAutoPin()});
+    }
+  }
+  return result;
+}, onFocusLeave:function(e) {
+  if (!this.editingPlugin.getGrid().destroying) {
+    if (this.isCancelling) {
+      this.cancelEdit();
+    } else {
+      this.completeEdit(false);
+    }
+  }
+  this.isCancelling = false;
+}, onFocusEnter:function(e) {
+  if (this.$activeLocation) {
+    e.relatedTarget = e.fromElement = this.$activeLocation.getFocusEl('dom');
+  }
+  this.callParent([e]);
+}, getLocation:function() {
+  return this.$activeLocation;
+}, onSpecialKey:function(field, event) {
+  var me = this;
+  if (event.getKey() === event.ESC) {
+    me.isCancelling = true;
+  } else {
+    me.callParent([field, event]);
+  }
+}, onEditComplete:function(remainVisible, cancelling) {
+  var me = this, location = me.$activeLocation, value = me.getValue(), record, dataIndex, row, grid;
+  me.callParent([remainVisible, cancelling]);
+  if (location) {
+    grid = location.row.getGrid();
+    if (!cancelling && value !== me.startValue) {
+      record = location.record;
+      dataIndex = location.cell.dataIndex;
+      if (record) {
+        record.set(dataIndex, value);
+        grid.ensureVisible(location.record);
+        location.refresh();
+      }
+    }
+    if (!remainVisible) {
+      row = location.row;
+      grid.stickItem(row, null);
+      me.$stickyVisibility = me.$activeLocation = me.$activeRow = me.$activeGrid = null;
+      me.editingPlugin.editing = false;
+      me.editingPlugin.location = me.editingPlugin.activeEditor = null;
+    }
+  }
+}, realign:Ext.emptyFn, toggleBoundEl:function(visible) {
+  var location = this.$activeLocation, cell, bodyEl;
+  if (location && this.hideEl) {
+    cell = location.cell;
+    if (cell) {
+      bodyEl = cell.bodyElement;
+      bodyEl.setVisibility(visible);
+    }
+  }
+}});
 Ext.define('Ext.grid.Location', {extend:Ext.dataview.Location, isGridLocation:true, actionable:false, cell:null, column:null, columnIndex:-1, summary:false, row:null, rowBody:null, isTreeLocation:false, inheritableStatics:{defineProtoProperty:function(propName, getterName) {
   Object.defineProperty(this.prototype, propName, {get:function() {
     var v = this[getterName]();
@@ -63320,6 +64507,162 @@ navigationModel:'grid', pinnedHeader:{xtype:'rowheader'}, scrollable:true, scrol
   Grid.prototype.indexModifiedFields = Ext.Array.toMap;
 });
 Ext.define('Ext.theme.material.grid.Grid', {override:'Ext.grid.Grid', config:{rowLines:true, striped:false}});
+Ext.define('Ext.grid.plugin.CellEditing', {extend:Ext.plugin.Abstract, alias:['plugin.gridcellediting', 'plugin.cellediting'], config:{grid:null, triggerEvent:'doubletap', selectOnEdit:null}, init:function(grid) {
+  this.setGrid(grid);
+  grid.setTouchAction({doubleTapZoom:false});
+  grid.$cellEditing = true;
+}, getEditor:function(location) {
+  var column = location.column, fieldName = column.getDataIndex(), record = location.record, editable = column.getEditable(), editor, field;
+  if (!(editor = editable !== false && column.getEditor(location.record)) && editable) {
+    editor = Ext.create(column.getDefaultEditor());
+  }
+  if (editor) {
+    if (!editor.isCellEditor) {
+      editor = Ext.create({xtype:'celleditor', field:editor});
+    }
+    column.setEditor(editor);
+    editor.editingPlugin = this;
+    field = editor.getField();
+    field.addUi('celleditor');
+    field.setValidationField(record.getField(fieldName), record);
+  }
+  return editor;
+}, getActiveEditor:function() {
+  return this.activeEditor;
+}, updateGrid:function(grid, oldGrid) {
+  if (oldGrid) {
+    oldGrid.unregisterActionable(this);
+  }
+  if (grid) {
+    grid.registerActionable(this);
+  }
+}, activateCell:function(location) {
+  var me = this, activeEditor = me.activeEditor, previousEditor = me.$previousEditor, editor, selModel, result;
+  if (!location) {
+    Ext.raise('A grid Location must be passed into CellEditing#activateCell');
+  }
+  if (activeEditor && activeEditor.$activeLocation.cell === location.cell) {
+    return activeEditor.$activeLocation;
+  } else {
+    editor = me.getEditor(location);
+    if (editor) {
+      if (previousEditor) {
+        if (previousEditor.isCancelling) {
+          previousEditor.cancelEdit();
+        } else {
+          previousEditor.completeEdit();
+        }
+      }
+      result = editor.startEdit(location);
+      if (editor.editing) {
+        if (me.getSelectOnEdit()) {
+          selModel = me.getGrid().getSelectable();
+          if (selModel.getCells()) {
+            selModel.selectCells(location, location);
+          } else {
+            if (selModel.getRows()) {
+              selModel.select(location.record);
+            }
+          }
+        }
+        me.$previousEditor = editor;
+        return result;
+      }
+    }
+  }
+}, startEdit:function(record, column) {
+  this.activateCell(new Ext.grid.Location(this.getGrid(), {record:record, column:column}));
+}, destroy:function() {
+  var grid = this.getGrid();
+  if (grid) {
+    grid.$cellEditing = false;
+  }
+  this.$previousEditor = null;
+  this.callParent();
+}});
+Ext.define('Ext.grid.plugin.Editable', {extend:Ext.plugin.Abstract, alias:'plugin.grideditable', config:{grid:null, triggerEvent:'childdoubletap', formConfig:null, defaultFormConfig:{xtype:'formpanel', scrollable:true, items:[{xtype:'fieldset'}]}, toolbarConfig:{xtype:'titlebar', docked:'top', items:[{xtype:'button', ui:'alt', text:'Cancel', align:'left', action:'cancel'}, {xtype:'button', ui:'alt', text:'Submit', align:'right', action:'submit'}]}, enableDeleteButton:true}, init:function(grid) {
+  this.setGrid(grid);
+  grid.setTouchAction({doubleTapZoom:false});
+}, destroy:function() {
+  this.cleanup();
+  this.callParent();
+}, updateGrid:function(grid, oldGrid) {
+  var triggerEvent = this.getTriggerEvent();
+  if (oldGrid) {
+    oldGrid.un(triggerEvent, 'onTrigger', this);
+  }
+  if (grid) {
+    grid.on(triggerEvent, 'onTrigger', this);
+  }
+}, onCancelTap:function() {
+  this.sheet.hide();
+}, onSubmitTap:function() {
+  this.form.getRecord().set(this.form.getValues());
+  this.sheet.hide();
+}, onSheetHide:function() {
+  this.cleanup();
+}, getEditorFields:function(columns) {
+  var fields = [], ln = columns.length, map = {}, i, column, editor, editable, cfg;
+  for (i = 0; i < ln; i++) {
+    column = columns[i];
+    editable = column.getEditable();
+    editor = editable !== false && column.getEditor();
+    if (!editor && editable) {
+      cfg = column.getDefaultEditor();
+      editor = Ext.create(cfg);
+      column.setEditor(editor);
+    }
+    if (editor) {
+      if (map[column.getDataIndex()]) {
+        Ext.raise('An editable column with the same dataIndex "' + column.getDataIndex() + '" already exists.');
+      }
+      map[column.getDataIndex()] = true;
+      if (editor.isEditor) {
+        editor = editor.getField();
+      }
+      editor.setLabel(column.getText());
+      editor.setName(column.getDataIndex());
+      fields.push(editor);
+    }
+  }
+  return fields;
+}, onTrigger:function(grid, location) {
+  var me = this, record = location.record, formConfig = me.getFormConfig(), toolbarConfig = me.getToolbarConfig(), fields, form, sheet, toolbar;
+  if (!record || !location.row) {
+    return;
+  }
+  if (formConfig) {
+    me.form = form = Ext.factory(formConfig, Ext.form.Panel);
+  } else {
+    me.form = form = Ext.factory(me.getDefaultFormConfig());
+    fields = me.getEditorFields(grid.getColumns());
+    form.down('fieldset').setItems(fields);
+    form.clearFields = true;
+  }
+  toolbar = Ext.factory(toolbarConfig, Ext.form.TitleBar);
+  me.submitButton = toolbar.down('button[action\x3dsubmit]');
+  toolbar.down('button[action\x3dcancel]').on('tap', 'onCancelTap', me);
+  me.submitButton.on('tap', 'onSubmitTap', me);
+  form.on({change:'onFieldChange', delegate:'field', scope:me});
+  form.setRecord(record);
+  me.sheet = sheet = grid.add({xtype:'sheet', items:[toolbar, form], hideOnMaskTap:true, enter:'right', exit:'right', right:0, width:320, layout:'fit', stretchY:true, hidden:true});
+  if (me.getEnableDeleteButton()) {
+    form.add({xtype:'button', text:'Delete', ui:'decline', margin:10, handler:function() {
+      grid.getStore().remove(record);
+      sheet.hide();
+    }});
+  }
+  sheet.on('hide', 'onSheetHide', me);
+  sheet.show();
+}, privates:{onFieldChange:function() {
+  this.submitButton.setDisabled(!this.form.isValid());
+}, cleanup:function() {
+  var me = this, form = me.form;
+  if (form && !form.destroyed && form.clearFields) {
+    form.removeAll(false);
+  }
+  me.form = me.sheet = Ext.destroy(me.sheet);
+}}});
 Ext.define('Ext.layout.Fit', {extend:Ext.layout.Auto, alias:'layout.fit', isFit:true, cls:Ext.baseCSSPrefix + 'layout-fit', itemCls:Ext.baseCSSPrefix + 'layout-fit-item'});
 Ext.define('Ext.theme.material.layout.overflow.Scroller', {override:'Ext.layout.overflow.Scroller', config:{backwardTool:{ripple:{centered:false, bound:true, diameterLimit:false}}, forwardTool:{ripple:{centered:false, bound:true, diameterLimit:false}}}});
 Ext.define('Ext.menu.Separator', {extend:Ext.Component, alias:'widget.menuseparator', isMenuSeparator:true, focusable:false, classCls:Ext.baseCSSPrefix + 'menuseparator', ariaRole:'separator'});

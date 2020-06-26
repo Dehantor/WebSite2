@@ -5,6 +5,7 @@ import { medium, large } from './responsiveFormulas';
 import Home from './Home/Home';
 import About from './About/About';
 import Contacts from './Contacts/Contacts';
+import Personal from './Personal/Personal';
 import NavMenu from './NavMenu';
 
 /**
@@ -72,7 +73,8 @@ class Layout extends Component {
                     <Switch>
                         <Route path="/" component={Home} exact/>
                         <Route path="/about" component={About}/>
-                        <Route path="/Contacts" component={Contacts}exact/>
+                        <Route path="/contacts" component={Contacts}exact/>
+                        <Route path="/personal" component={Personal}exact/>
                     </Switch>
                 </Transition>
             </Container>

@@ -2850,6 +2850,11 @@ div.x-trigger.x-grouped {
 .x-textfield.x-label-align-placeholder.x-label-inside .x-input-el:-ms-input-placeholder {
     opacity: 0;
 }
+/* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-base/sass/src/Editor.scss:1 */
+.x-editor {
+    background-color: #fafafa;
+    background-color: var(--background-color);
+}
 /* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-base/sass/src/menu/Item.scss:1 */
 .x-menuitem {
     display: flex;
@@ -2985,6 +2990,18 @@ div.x-trigger.x-grouped {
 /* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-base/sass/src/menu/Menu.scss:83 */
 .x-mac .x-alt-key.x-shift-key.x-meta-key:before {
     content: "\2325\21E7\2318";
+}
+/* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-base/sass/src/Toast.scss:5 */
+.x-toast {
+    /**
+ * @class Ext.Toast
+ */
+    max-width: 90vw;
+    max-height: 90vh;
+}
+/* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-base/sass/src/Toast.scss:9 */
+.x-toast .x-toast-text {
+    text-align: center;
 }
 /* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-base/sass/src/dataview/EmptyText.scss:1 */
 .x-emptytext {
@@ -3708,6 +3725,38 @@ div.x-trigger.x-grouped {
 /* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-base/sass/src/field/Search.scss:9 */
 .x-searchfield .x-input-el::-webkit-search-cancel-button {
     -webkit-appearance: none;
+}
+/* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-base/sass/src/form/FieldSet.scss:2 */
+.x-form-fieldset-title .x-innerhtml {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+/* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-base/sass/src/form/FieldSet.scss:7 */
+.x-form-fieldset-instructions {
+    text-align: center;
+}
+/* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-base/sass/src/form/Panel.scss:7 */
+.x-formpanel .x-hidden-submit {
+    /**
+ * @class Ext.form.Panel
+ */
+    visibility: hidden;
+    width: 0;
+    height: 0;
+    position: absolute;
+    right: 0;
+    bottom: 0;
+}
+/* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-base/sass/src/grid/CellEditor.scss:1 */
+.x-celleditor {
+    width: auto;
+    height: auto;
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
 }
 /* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-base/sass/src/grid/cell/Base.scss:1 */
 .x-gridcell {
@@ -10000,6 +10049,30 @@ div.x-trigger.x-grouped {
 .x-titlebar-body-el.x-vertical > .x-component:last-child {
     margin-bottom: 0;
 }
+/* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-neptune/sass/src/Toast.scss:5 */
+.x-toast {
+    /**
+ * @class Ext.Toast
+ */
+    margin: 0;
+    -webkit-box-shadow: 2px 2px 5px 0 rgba(0, 0, 0, 0.12), 2px 2px 5px 0 rgba(0, 0, 0, 0.08);
+    -moz-box-shadow: 2px 2px 5px 0 rgba(0, 0, 0, 0.12), 2px 2px 5px 0 rgba(0, 0, 0, 0.08);
+    box-shadow: 2px 2px 5px 0 rgba(0, 0, 0, 0.12), 2px 2px 5px 0 rgba(0, 0, 0, 0.08);
+}
+/* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-neptune/sass/src/Toast.scss:10 */
+.x-toast .x-toast-body-el {
+    color: #fff;
+    color: var(--reverse-color);
+    background-color: #303030;
+    background-color: var(--reverse-background-color);
+    font: 400 14px/18px Roboto, sans-serif;
+    padding: 8px;
+}
+/* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-neptune/sass/src/Toast.scss:18 */
+.x-big .x-toast .x-toast-body-el {
+    font: 400 16px/25px, 16px Roboto, sans-serif;
+    padding: 8px;
+}
 /* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-neptune/sass/var/dataview/EmptyText.scss:120 */
 .x-emptytext {
     color: rgba(17, 17, 17, 0.54);
@@ -10912,6 +10985,109 @@ div.x-trigger.x-grouped {
 /* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-base/sass/etc/mixins/icon.scss:93 */
 .x-searchtrigger .x-icon-el:before {
     content: 'search';
+}
+/* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-neptune/sass/src/form/FieldSet.scss:5 */
+.x-form-fieldset {
+    /**
+ * @class Ext.form.FieldSet
+ */
+    margin: 0;
+}
+/* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-neptune/sass/src/form/FieldSet.scss:8 */
+.x-form-fieldset .x-form-fieldset-body-el {
+    border-style: none;
+    padding: 8px;
+    -webkit-border-radius: 0;
+    -moz-border-radius: 0;
+    -ms-border-radius: 0;
+    -o-border-radius: 0;
+    border-radius: 0;
+}
+/* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-neptune/sass/src/form/FieldSet.scss:17 */
+.x-form-fieldset .x-field {
+    background: transparent;
+}
+/* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-neptune/sass/src/form/FieldSet.scss:39 */
+.x-form-fieldset-title {
+    font: 400 14px/18px Roboto, sans-serif;
+    margin: 0;
+    color: #111;
+    color: var(--color);
+}
+/* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-neptune/sass/src/form/FieldSet.scss:44 */
+.x-big .x-form-fieldset-title {
+    font: 400 16px/24px Roboto, sans-serif;
+}
+/* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-neptune/sass/src/form/FieldSet.scss:51 */
+.x-form-fieldset-instructions {
+    font-weight: 400;
+    font-size: 12px;
+    line-height: 32px;
+    color: rgba(17, 17, 17, 0.54);
+    color: var(--highlight-color);
+    text-align: left;
+}
+/* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-neptune/sass/src/form/FieldSet.scss:57 */
+.x-big .x-form-fieldset-instructions {
+    font-weight: 400;
+    font-size: 12px;
+    line-height: 32px;
+}
+/* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-neptune/sass/src/form/FieldSet.scss:65 */
+.x-field.x-label-align-left:first-child .x-label-el {
+    -moz-border-radius-topleft: 0;
+    -webkit-border-top-left-radius: 0;
+    border-top-left-radius: 0;
+}
+/* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-neptune/sass/src/form/FieldSet.scss:71 */
+.x-field.x-label-align-left:last-child .x-label-el {
+    -moz-border-radius-bottomleft: 0;
+    -webkit-border-bottom-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+/* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-neptune/sass/src/form/FieldSet.scss:79 */
+.x-field.x-label-align-right:first-child .x-label-el {
+    -moz-border-radius-topright: 0;
+    -webkit-border-top-right-radius: 0;
+    border-top-right-radius: 0;
+}
+/* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-neptune/sass/src/form/FieldSet.scss:84 */
+.x-field.x-label-align-right:last-child {
+    border-bottom: 0;
+}
+/* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-neptune/sass/src/form/FieldSet.scss:87 */
+.x-field.x-label-align-right:last-child .x-label-el {
+    -moz-border-radius-bottomright: 0;
+    -webkit-border-bottom-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+/* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-neptune/sass/src/form/FieldSet.scss:95 */
+.x-field.x-label-align-top:first-child .x-label-el {
+    -moz-border-radius-topleft: 0;
+    -webkit-border-top-left-radius: 0;
+    border-top-left-radius: 0;
+    -moz-border-radius-topright: 0;
+    -webkit-border-top-right-radius: 0;
+    border-top-right-radius: 0;
+}
+/* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-neptune/sass/src/form/FieldSet.scss:103 */
+.x-field.x-label-align-bottom:last-child .x-label-el {
+    -moz-border-radius-bottomleft: 0;
+    -webkit-border-bottom-left-radius: 0;
+    border-bottom-left-radius: 0;
+    -moz-border-radius-bottomright: 0;
+    -webkit-border-bottom-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+/* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-neptune/sass/src/form/Panel.scss:5 */
+.x-formpanel-body-el {
+    background-color: #fafafa;
+    background-color: var(--background-color);
+    padding: 8px 16px;
+}
+/* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-neptune/sass/src/form/Panel.scss:9 */
+.x-big .x-formpanel-body-el {
+    padding: 8px 16px;
 }
 /* C:/Users/dehantor/WebstormProjects/untitled3/scrum/WebSite2/client/node_modules/@extjs/ext-react-theme-neptune/sass/var/grid/cell/Base.scss:332 */
 .x-gridcell {

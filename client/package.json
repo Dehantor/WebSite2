@@ -27,7 +27,8 @@
     "react-router-dom": "^4.1.1",
     "sequelize-cli": "~5.5.1",
     "write-file-p": "^1.0.7",
-    "react-json-editor": "~0.3.0"
+    "react-json-editor": "~0.3.0",
+    "word-extractor": "~0.3.0"
   },
   "devDependencies": {
     "@extjs/reactor-babel-plugin": "^1.1.1",

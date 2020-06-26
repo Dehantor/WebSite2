@@ -9,7 +9,8 @@ Ext.require('Ext.data.TreeStore');
  */
 export default function NavMenu({ 
     onItemClick, 
-    selection, 
+    selection,
+
     ...props 
 }) {
     return (
@@ -17,16 +18,17 @@ export default function NavMenu({
             {...props}
             ui="nav"
             expanderFirst={false}
+            width={300}
             onItemClick={(tree, item) => onItemClick(item.node.getId())}
             selection={selection}
             store={{
                 root: {
                     children: [
                         { id: '/', text: 'Планирование поставок', iconCls: 'x-fa fa-calendar', leaf: true },
-                        { id: '/about', text: 'Персонал', iconCls: 'x-fa fa-user', leaf: true },
+                        { id: '/personal', text: 'Персонал', iconCls: 'x-fa fa-user', leaf: true },
                         { id: '/contacts', text: 'Контракты', iconCls: 'x-fa fa-info', leaf: true },
                         { id: '/about', text: 'Данные о ресурсах', iconCls: 'x-fa fa-file', leaf: true },
-                        { id: '/about', text: 'Региональные подразделение', iconCls: 'x-fa fa-cloud', leaf: true },
+                        { id: '/about', text: 'Региональные  подразделение', iconCls: 'x-fa fa-cloud', leaf: true },
                         { id: '/about', text: 'Подготовка', iconCls: 'x-fa fa-pencil', leaf: true },
                         { id: '/about', text: 'Реестр', iconCls: 'x-fa fa-list', leaf: true },
                         { id: '/about', text: 'Исполение поручений', iconCls: 'x-fa fa-calendar', leaf: true },

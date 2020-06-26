@@ -1,8 +1,16 @@
 import React, { Component } from 'react';
-import {Column, Container, Grid, SearchField, Toolbar} from '@extjs/ext-react';
+import {Column, Panel, Container, Grid, SearchField, Toolbar, DatePickerField,RendererCell , Button} from '@extjs/ext-react';
 import axios from 'axios';
 import {medium, small} from "../responsiveFormulas";
+import {DateField} from "@extjs/reactor/modern";
 //import data from './data';
+Ext.require([
+    'Ext.grid.plugin.Editable',
+    'Ext.grid.plugin.CellEditing',
+    'Ext.data.validator.Presence',
+    'Ext.data.validator.Number',
+    'Ext.data.validator.Date'
+]);
 var datar;
 var Animal = function(id, name,xt) {
     this.p00 = id;
@@ -10,14 +18,15 @@ var Animal = function(id, name,xt) {
 };
 
 var data = [];
-var Form = require('react-json-editor');
 
 export default class Contacts extends Component {
     constructor(props){
         super(props);
         this.state={
-            r1022List:[]
+            r1022List:[],
+            message: null
         }
+
     }
 
     componentDidMount() {
@@ -49,40 +58,111 @@ export default class Contacts extends Component {
         data
     });
     render() {
-
         return (
 
       //  <p>sdf</p>
-            <Grid store={this.stort}>
-                <Column
-                    dataIndex="p00"
-                    flex={2}
-                    resizable
-                />
-                <Column
-                    text="Email"
-                    dataIndex="p01"
-                    flex={3}
-                    resizable
-                    responsiveConfig={{
-                        [small]: {
-                            hidden: true
-                        },
-                        [medium]: {
-                            hidden: false
-                        }
-                    }}
-                />
-            </Grid>
 
+            <Container title="Планирование поставок"  layout="hbox"  padding="30">
 
-           /* <Container>
+                <Grid store={this.stort}
+                      shadow
+                      width ={280}
 
-              <p> hkjh</p>
-                <p> sdfsdfgdfg{this.loadFillData()}</p>
-            </Container>*/
+                      platformConfig={{
+                          desktop: {
+                              plugins: {
+                                  gridcellediting: true
+                              }
+                          },
+                          '!desktop': {
+                              plugins: {
+                                  grideditable: true
+                              }
+                          }
+                      }}
+                >
+                    <Column
+                        text="Регионы"
+                        dataIndex="p01"
+                        flex={3}
+                        resizable
+                        editable
+                        responsiveConfig={{
+                            [small]: {
+                                hidden: true
+                            },
+                            [medium]: {
+                                hidden: false
+                            }
+                        }}
+                    />
+                    <Column
+                        text=""
+                        width="100"
+                        ignoreExport
+                        dataIndex="verified"
+                        align="center"
+                    >
+                        <RendererCell
+                            renderer={this.renderVerify}
+                            bodyStyle={{ padding: 0 }}
+                        >
+
+                        </RendererCell>
+                    </Column>
+                </Grid>
+
+                <Container
+                    defaults={{  margin: 10 }}
+                >
+                    <Panel  width={800} height={100} split={true}>
+                        <h1>Таблица о возможностях организаций,
+                            находящихся в ведении или сфере деятельности {this.state.message ==null? '____' : this.state.message} (субъекта РФ или ФОИВ)</h1>
+
+                    </Panel>
+                <Panel title="таблица" width={500}  height={400}
+                       draggable={true}
+                    collapsible={true} //сворачиваемость
+                    closable={true}// закрываемость
+                     >
+                     <Grid store={this.stort}>
+                        <Column
+                            text="таблица"
+                            dataIndex="p01"
+                            flex={3}
+                            resizable
+                            responsiveConfig={{
+                                [small]: {
+                                    hidden: true
+                                },
+                                [medium]: {
+                                    hidden: false
+                                }
+                            }}
+
+                        />
+                    </Grid>
+                </Panel>
+
+                </Container>
+    </Container>
 
         )
+    }
+    onButtonTap() {
+        this.setState({ message: 'Tapped!' });
+    }
+    renderVerify = (value, record) => (
+        <Container>
+            <Button
+                text='Выбрать'
+                ui="action"
+                handler={this.onVerify.bind(this, record)}
+            />
+        </Container>
+    )
+    onVerify = (record) => {
+        this.setState({ message: record.get('p01')});
     }
     loadFillData(){
         return this.state.r1022List.map((data)=>{
