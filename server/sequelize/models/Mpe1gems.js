@@ -1,5 +1,5 @@
 'use strict'
-
+//модель базы mpe1gem
 module.exports = (sequelize,Datatypes)=>{
 return sequelize.define("mpe1gem", {
            id: {

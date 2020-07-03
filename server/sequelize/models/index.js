@@ -5,13 +5,13 @@ const Sequelize = require('sequelize');
 const basename = path.basename(__filename);
 const config = require('../config');
 const db= {};
-
-console.log(config);
+//настраиваем соединение
 const sequelize = new Sequelize(config.db.database, config.db.username,
         config.db.password,{
     dialect:'postgres',
     host:config.db.host
     } );
+//импортируем модели
 fs
     .readdirSync(__dirname)
     .filter(file=>{
@@ -20,7 +20,7 @@ fs
     .forEach(file=>{
         const model = sequelize['import'](path.join(__dirname,file));
 });
-
+//настраиваем ассоциации в моделях
 Object.keys(db).forEach(modelName=>{
     if(db[modelName].associate){
         db[modelName].associate(db);
@@ -29,7 +29,7 @@ Object.keys(db).forEach(modelName=>{
 
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;
-
+//устанавливаем соединение
 sequelize
     .authenticate()
     .then(function(err) {

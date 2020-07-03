@@ -1,0 +1,22 @@
+const controllers={};
+const db= require('../models/');
+
+
+//получение данных с бд
+controllers.mpelist=async (req,res)=>{
+ console.log(req.body.r1022);
+ const data = await db.sequelize.models.mpe1gem.findAll({where:{r1022:req.body.r1022}})
+     .then(function (data) {
+      return data;
+     })
+     .catch(error=>{
+      return error;
+     });
+ res.json({success:function(response, request) {
+   // do whatever you need to with the generated HTML
+   console.log(response);
+   console.log(data);
+  },data:data})
+}
+
+module.exports = controllers;

@@ -48631,6 +48631,203 @@ Ext.define('Ext.mixin.StyleCacher', {extend:Ext.Mixin, mixinConfig:{id:'stylecac
   }
   return cache[style];
 }});
+Ext.define('Ext.plugin.AbstractClipboard', {extend:Ext.plugin.Abstract, cachedConfig:{formats:{text:{get:'getTextData', put:'putTextData'}}}, config:{memory:null, source:'system', system:'text', gridListeners:null}, destroy:function() {
+  var me = this, keyMap = me.keyMap, shared = me.shared;
+  Ext.destroy(me.destroyListener);
+  if (keyMap) {
+    me.keyMap = Ext.destroy(keyMap);
+    if (!--shared.counter) {
+      shared.textArea = Ext.destroy(shared.textArea);
+    }
+  } else {
+    me.renderListener = Ext.destroy(me.renderListener);
+  }
+  me.callParent();
+}, init:function(comp) {
+  var me = this, listeners = me.getGridListeners();
+  if (comp.rendered) {
+    me.finishInit(comp);
+  } else {
+    if (listeners) {
+      me.renderListener = comp.on(Ext.apply({scope:me, destroyable:true, single:true}, listeners));
+    }
+  }
+}, onCmpReady:function() {
+  this.renderListener = null;
+  this.finishInit(this.getCmp());
+}, getTarget:function(comp) {
+  return comp.el;
+}, privates:{shared:{counter:0, data:null, textArea:null}, applyMemory:function(value) {
+  value = this.applySource(value);
+  if (value) {
+    for (var i = value.length; i-- > 0;) {
+      if (value[i] === 'system') {
+        Ext.raise('Invalid clipboard format "' + value[i] + '"');
+      }
+    }
+  }
+  return value;
+}, applySource:function(value) {
+  if (value) {
+    if (Ext.isString(value)) {
+      value = [value];
+    } else {
+      if (value.length === 0) {
+        value = null;
+      }
+    }
+  }
+  if (value) {
+    var formats = this.getFormats();
+    for (var i = value.length; i-- > 0;) {
+      if (value[i] !== 'system' && !formats[value[i]]) {
+        Ext.raise('Invalid clipboard format "' + value[i] + '"');
+      }
+    }
+  }
+  return value || null;
+}, applySystem:function(value) {
+  var formats = this.getFormats();
+  if (!formats[value]) {
+    Ext.raise('Invalid clipboard format "' + value + '"');
+  }
+  return value;
+}, doCutCopy:function(event, erase) {
+  var me = this, formats = me.allFormats || me.syncFormats(), data = me.getData(erase, formats), memory = me.getMemory(), system = me.getSystem(), sys;
+  if (me.validateAction(event) === false) {
+    return;
+  }
+  me.shared.data = memory && data;
+  if (system) {
+    sys = data[system];
+    if (formats[system] < 3) {
+      delete data[system];
+    }
+    me.setClipboardData(sys);
+  }
+}, doPaste:function(format, data) {
+  var formats = this.getFormats();
+  this[formats[format].put](data, format);
+}, finishInit:function(comp) {
+  var me = this;
+  me.keyMap = new Ext.util.KeyMap({target:me.getTarget(comp), ignoreInputFields:true, binding:[{ctrl:true, key:'x', fn:me.onCut, scope:me}, {ctrl:true, key:'c', fn:me.onCopy, scope:me}, {ctrl:true, key:'v', fn:me.onPaste, scope:me}]});
+  ++me.shared.counter;
+  me.destroyListener = comp.on({destroyable:true, destroy:'destroy', scope:me});
+}, getData:function(erase, format) {
+  var me = this, formats = me.getFormats(), data, i, name, names;
+  if (Ext.isString(format)) {
+    if (!formats[format]) {
+      Ext.raise('Invalid clipboard format "' + format + '"');
+    }
+    data = me[formats[format].get](format, erase);
+  } else {
+    data = {};
+    names = [];
+    if (format) {
+      for (name in format) {
+        if (!formats[name]) {
+          Ext.raise('Invalid clipboard format "' + name + '"');
+        }
+        names.push(name);
+      }
+    } else {
+      names = Ext.Object.getAllKeys(formats);
+    }
+    for (i = names.length; i-- > 0;) {
+      data[name] = me[formats[name].get](name, erase && !i);
+    }
+  }
+  return data;
+}, getHiddenTextArea:function() {
+  var shared = this.shared, el;
+  el = shared.textArea;
+  if (!el) {
+    el = shared.textArea = Ext.getBody().createChild({tag:'textarea', tabIndex:-1, style:{position:'absolute', top:'-1000px', width:'1px', height:'1px'}});
+    el.suspendFocusEvents();
+  }
+  return el;
+}, onCopy:function(keyCode, event) {
+  this.doCutCopy(event, false);
+}, onCut:function(keyCode, event) {
+  this.doCutCopy(event, true);
+}, onPaste:function(keyCode, event) {
+  var me = this, sharedData = me.shared.data, source = me.getSource(), i, n, s;
+  if (me.validateAction(event) === false) {
+    return;
+  }
+  if (source) {
+    for (i = 0, n = source.length; i < n; ++i) {
+      s = source[i];
+      if (s === 'system') {
+        s = me.getSystem();
+        me.pasteClipboardData(s);
+        break;
+      } else {
+        if (sharedData && s in sharedData) {
+          me.doPaste(s, sharedData[s]);
+          break;
+        }
+      }
+    }
+  }
+}, pasteClipboardData:function(format) {
+  var me = this, clippy = window.clipboardData, area, focusEl;
+  if (clippy && clippy.getData) {
+    me.doPaste(format, clippy.getData('text'));
+  } else {
+    focusEl = Ext.Element.getActiveElement(true);
+    area = me.getHiddenTextArea().dom;
+    area.value = '';
+    if (focusEl) {
+      focusEl.suspendFocusEvents();
+    }
+    area.focus();
+    Ext.defer(function() {
+      if (focusEl) {
+        focusEl.focus();
+        focusEl.resumeFocusEvents();
+      }
+      me.doPaste(format, area.value);
+      area.value = '';
+    }, 100, me);
+  }
+}, setClipboardData:function(data) {
+  var clippy = window.clipboardData;
+  if (clippy && clippy.setData) {
+    clippy.setData('text', data);
+  } else {
+    var me = this, area = me.getHiddenTextArea().dom, focusEl = Ext.Element.getActiveElement(true);
+    area.value = data;
+    if (focusEl) {
+      focusEl.suspendFocusEvents();
+    }
+    area.focus();
+    area.select();
+    Ext.defer(function() {
+      area.value = '';
+      if (focusEl) {
+        focusEl.focus();
+        focusEl.resumeFocusEvents();
+      }
+    }, 50);
+  }
+}, syncFormats:function() {
+  var me = this, map = {}, memory = me.getMemory(), system = me.getSystem(), i, s;
+  if (system) {
+    map[system] = 1;
+  }
+  if (memory) {
+    for (i = memory.length; i-- > 0;) {
+      s = memory[i];
+      map[s] = map[s] ? 3 : 2;
+    }
+  }
+  return me.allFormats = map;
+}, updateMemory:function() {
+  this.allFormats = null;
+}, updateSystem:function() {
+  this.allFormats = null;
+}, validateAction:Ext.privateFn}});
 Ext.define('Ext.override.sparkline.Base', {override:'Ext.sparkline.Base', statics:{constructTip:function() {
   return new Ext.tip['ToolTip']({id:'sparklines-tooltip', trackMouse:true, showDelay:0, dismissDelay:0, hideDelay:400});
 }}, onMouseMove:function(e) {
@@ -48643,6 +48840,74 @@ Ext.define('Ext.override.sparkline.Base', {override:'Ext.sparkline.Base', static
 }, showTip:function() {
   this.getSharedTooltip().handleTargetOver(this.currentEvent, this.element);
 }}});
+Ext.define('Ext.util.DelimitedValue', {dateFormat:'C', delimiter:'\t', lineBreak:'\n', quote:'"', lineBreakRe:/\r?\n/g, lastLineBreakRe:/(\r?\n|\r)$/, constructor:function(config) {
+  if (config) {
+    Ext.apply(this, config);
+  }
+  this.parseREs = {};
+  this.quoteREs = {};
+}, decode:function(input, delimiter, quoteChar) {
+  if (!input) {
+    return [];
+  }
+  var me = this, delim = delimiter || me.delimiter, row = [], result = [row], quote = quoteChar !== undefined ? quoteChar : me.quote, quoteREs = me.quoteREs, parseREs = me.parseREs, parseRE, dblQuoteRE, arrMatches, strMatchedDelimiter, strMatchedValue;
+  parseRE = quote === me.quote ? parseREs[delim] : null;
+  parseRE = parseRE || new RegExp('(\\' + delim + '|\\r?\\n|\\r|^)' + '(?:' + (quote === null ? '()' : '\\' + quote + '([^\\' + quote + ']*(?:\\' + quote + '\\' + quote + '[^\\' + quote + ']*)*)\\' + quote + '|') + '([^' + (quote === null ? '' : quote) + delim + '\\r\\n]*))', 'gi');
+  dblQuoteRE = quote === me.quote ? quoteREs[quote] : null;
+  dblQuoteRE = dblQuoteRE || new RegExp('\\' + quote + '\\' + quote, 'g');
+  input = input.replace(me.lastLineBreakRe, '');
+  while (arrMatches = parseRE.exec(input)) {
+    strMatchedDelimiter = arrMatches[1];
+    if (strMatchedDelimiter.length && strMatchedDelimiter !== delim) {
+      result.push(row = []);
+    }
+    if (!arrMatches.index && arrMatches[0].charAt(0) === delim) {
+      row.push('');
+    }
+    if (arrMatches[2]) {
+      strMatchedValue = arrMatches[2].replace(dblQuoteRE, quote);
+    } else {
+      strMatchedValue = arrMatches[3];
+    }
+    row.push(strMatchedValue);
+  }
+  return result;
+}, encode:function(input, delimiter, quoteChar) {
+  var me = this, delim = delimiter || me.delimiter, dateFormat = me.dateFormat, quote = quoteChar !== undefined ? quoteChar : me.quote, twoQuotes = quote + quote, rowIndex = input.length, lineBreakRe = me.lineBreakRe, result = [], outputRow = [], col, columnIndex, inputRow;
+  while (rowIndex-- > 0) {
+    inputRow = input[rowIndex];
+    outputRow.length = columnIndex = inputRow.length;
+    while (columnIndex-- > 0) {
+      col = inputRow[columnIndex];
+      if (col == null) {
+        col = '';
+      } else {
+        if (typeof col === 'string') {
+          if (col && quote !== null) {
+            if (col.indexOf(quote) > -1) {
+              col = quote + col.split(quote).join(twoQuotes) + quote;
+            } else {
+              if (col.indexOf(delim) > -1 || lineBreakRe.test(col)) {
+                col = quote + col + quote;
+              }
+            }
+          }
+        } else {
+          if (Ext.isDate(col)) {
+            col = Ext.Date.format(col, dateFormat);
+          } else {
+            if (col && (isNaN(col) || Ext.isArray(col))) {
+              Ext.raise('Cannot serialize ' + Ext.typeOf(col) + ' into CSV');
+            }
+          }
+        }
+      }
+      outputRow[columnIndex] = col;
+    }
+    result[rowIndex] = outputRow.join(delim);
+  }
+  return result.join(me.lineBreak);
+}});
 Ext.define('Ext.util.ClickRepeater', {alternateClassName:'Ext.util.TapRepeater', mixins:[Ext.mixin.Observable], config:{el:null, target:null, disabled:null}, interval:20, delay:250, preventDefault:true, stopDefault:false, timer:0, handler:null, scope:null, constructor:function(config) {
   var me = this;
   if (arguments.length === 2) {
@@ -48889,6 +49154,9 @@ Ext.define('Ext.util.Spans', {isSpans:true, constructor:function() {
 }, privates:{bisect:function(value) {
   return Ext.Number.bisectTuples(this.spans, value, 0);
 }}});
+Ext.define('Ext.util.TsvDecoder', {extend:Ext.util.DelimitedValue, alternateClassName:'Ext.util.TSV', delimiter:'\t'}, function(TSVClass) {
+  Ext.util.TSV = new TSVClass;
+});
 Ext.define('Ext.util.TaskManager', {extend:Ext.util.TaskRunner, alternateClassName:['Ext.TaskManager'], singleton:true});
 Ext.define('Ext.util.TextMetrics', {statics:{shared:null, measure:function(el, text, fixedWidth) {
   var me = this, shared = me.shared || (me.shared = new me(el, fixedWidth));
@@ -64580,6 +64848,100 @@ Ext.define('Ext.grid.plugin.CellEditing', {extend:Ext.plugin.Abstract, alias:['p
   this.$previousEditor = null;
   this.callParent();
 }});
+Ext.define('Ext.grid.plugin.Clipboard', {extend:Ext.plugin.AbstractClipboard, alias:'plugin.clipboard', formats:{cell:{get:'getCells'}, html:{get:'getCellData'}, raw:{get:'getCellData', put:'putCellData'}}, gridListeners:{initialize:'onCmpReady'}, getCellData:function(format, erase) {
+  var cmp = this.getCmp(), selectable = cmp.getSelectable(), selection = selectable && selectable.getSelection(), ret = [], isRaw = format === 'raw', isText = format === 'text', data, dataIndex, lastRecord, column, record, row;
+  if (selection) {
+    selection.eachCell(function(location, colIdx, rowIdx) {
+      column = location.column;
+      record = location.record;
+      if (column.getIgnoreExport()) {
+        return;
+      }
+      if (lastRecord !== record) {
+        lastRecord = record;
+        ret.push(row = []);
+      }
+      dataIndex = column.getDataIndex();
+      data = record.data[dataIndex];
+      if (!isRaw) {
+        data = column.printValue(data);
+        if (isText) {
+          data = Ext.util.Format.stripTags(data);
+        }
+      }
+      row.push(data);
+      if (erase && dataIndex) {
+        record.set(dataIndex, null);
+      }
+    });
+  }
+  return Ext.util.TSV.encode(ret);
+}, getCells:function(format, erase) {
+  var cmp = this.getCmp(), selectable = cmp.getSelectable(), selection = selectable && selectable.getSelection(), ret = [], dataIndex, lastRecord, record, row;
+  if (selection) {
+    selection.eachCell(function(location) {
+      record = location.record;
+      if (lastRecord !== record) {
+        lastRecord = record;
+        ret.push(row = {model:record.self, fields:[]});
+      }
+      dataIndex = location.column.getDataIndex();
+      row.fields.push({name:dataIndex, value:record.data[dataIndex]});
+      if (erase && dataIndex) {
+        record.set(dataIndex, null);
+      }
+    });
+  }
+  return ret;
+}, getTextData:function(format, erase) {
+  return this.getCellData(format, erase);
+}, putCellData:function(data, format) {
+  var cmp = this.getCmp(), values = Ext.util.TSV.decode(data, undefined, null), recCount = values.length, colCount = recCount ? values[0].length : 0, columns = cmp.getHeaderContainer().getVisibleColumns(), store = cmp.getStore(), maxRowIdx = store ? store.getCount() - 1 : 0, maxColIdx = columns.length - 1, selectable = cmp.getSelectable(), selection = selectable && selectable.getSelection(), row, sourceRowIdx, sourceColIdx, column, record, columnIndex, recordIndex, dataObject, destination, dataIndex, 
+  startColumnIndex, startRecordIndex;
+  if (maxRowIdx <= 0 || maxColIdx <= 0) {
+    return;
+  }
+  if (selection) {
+    selection.eachCell(function(c) {
+      destination = c;
+      return false;
+    });
+  }
+  startColumnIndex = destination ? destination.columnIndex : 0;
+  startRecordIndex = destination ? destination.recordIndex : 0;
+  for (sourceRowIdx = 0; sourceRowIdx < recCount; sourceRowIdx++) {
+    row = values[sourceRowIdx];
+    recordIndex = startRecordIndex + sourceRowIdx;
+    if (recordIndex > maxRowIdx) {
+      break;
+    }
+    record = store.getAt(recordIndex);
+    dataObject = {};
+    columnIndex = startColumnIndex;
+    sourceColIdx = 0;
+    while (sourceColIdx < colCount && columnIndex <= maxColIdx) {
+      column = columns[columnIndex];
+      dataIndex = column.getDataIndex();
+      if (!column.getIgnoreExport()) {
+        if (dataIndex && (format === 'raw' || format === 'text')) {
+          dataObject[dataIndex] = row[sourceColIdx];
+        }
+        sourceColIdx++;
+      }
+      columnIndex++;
+    }
+    record.set(dataObject);
+  }
+}, putTextData:function(data, format) {
+  this.putCellData(data, format);
+}, getTarget:function(comp) {
+  return comp.element;
+}, privates:{validateAction:function(event) {
+  var cmp = this.getCmp(), viewLocation = cmp.getNavigationModel().getLocation(), selectable = cmp.getSelectable(), checkColumn = selectable && selectable.getCheckbox();
+  if (viewLocation && viewLocation.actionable && checkColumn !== viewLocation.column) {
+    return false;
+  }
+}}});
 Ext.define('Ext.grid.plugin.Editable', {extend:Ext.plugin.Abstract, alias:'plugin.grideditable', config:{grid:null, triggerEvent:'childdoubletap', formConfig:null, defaultFormConfig:{xtype:'formpanel', scrollable:true, items:[{xtype:'fieldset'}]}, toolbarConfig:{xtype:'titlebar', docked:'top', items:[{xtype:'button', ui:'alt', text:'Cancel', align:'left', action:'cancel'}, {xtype:'button', ui:'alt', text:'Submit', align:'right', action:'submit'}]}, enableDeleteButton:true}, init:function(grid) {
   this.setGrid(grid);
   grid.setTouchAction({doubleTapZoom:false});

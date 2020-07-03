@@ -1,0 +1,12 @@
+export default Ext.define('R1022.model', {
+    extend: 'Ext.data.Model',
+    fields: [
+        {name: 'p00', type: 'string'},
+        {name: 'p01', type: 'string'},
+        {name: 'p02', type: 'string'},
+        {name: 'utv', type: 'string'},
+        {name: 'sp', type: 'string'},
+    ],
+
+})
+

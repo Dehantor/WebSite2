@@ -1,5 +1,5 @@
 'use strict'
-
+//модель базы r1022
 module.exports = (sequelize,Datatypes)=>{
 
     return sequelize.define("r1022", {

@@ -1,7 +1,7 @@
 const controllers={};
-
 const db= require('../models/');
 
+//тестовый запрос
 controllers.testdata = async (req,res)=>{
         const response =await db.sequelize.sync().then(function () {
         const data =db.sequelize.models.r1022.findAll();
@@ -12,6 +12,7 @@ controllers.testdata = async (req,res)=>{
             });
     res.json(response);
 };
+//заполнение тестовыми данными
 controllers.test=(req,res)=>{
     db.sequelize.sync({force: true}).then(result=>{
     db.sequelize.models.r1022.create({
@@ -82,6 +83,7 @@ controllers.test=(req,res)=>{
     console.log("данные залиты");
     res.json({success:'Ura'});
 }
+//получение данных с бд
 controllers.list=async (req,res)=>{
 
         const data = await db.sequelize.models.r1022.findAll()
@@ -91,7 +93,11 @@ controllers.list=async (req,res)=>{
         .catch(error=>{
             return error;
         });
-        res.json({success:true,data:data})
+        res.json({success:function(response, request) {
+                // do whatever you need to with the generated HTML
+                console.log(response);
+            },data:data})
+    console.log(data);
 }
 
 module.exports = controllers;
